@@ -1,0 +1,121 @@
+# Development
+
+Use Node >=22.22 and Docker with local-container access. Install python3, libseccomp2,
+poppler-utils for inspection/render tests; install Playwright Chromium with
+`npx playwright install --with-deps chromium`. Ensure `pdftoppm` is on PATH.
+
+```sh
+npm ci
+cp .env.example .env
+# Use local-only credentials/URLs from compose.yaml; replace placeholders.
+docker compose up -d
+npm run db:migrate
+npm run dev
+```
+
+Compose exposes Postgres 25432, SeaweedFS S3 28333, Mailpit SMTP 21025/UI 28025.
+MAIL_TRANSPORT=smtp delivers only to local Mailpit. `capture` is an in-process test
+adapter. Production requires HTTPS + Resend. Development worker uses a real provider
+unless `TRANSCRIPTION_PROVIDER=fake`; routine tests run NODE_ENV=test with FakeProvider.
+Never use production keys or invoke paid AI accidentally.
+
+## Private Lizardtail preview
+
+From `/home/dev/Development/AI-Capella-production` on the development host:
+
+```sh
+# This host's PATH CLI has stale compiled output; use the isolated current build.
+export PATH="$HOME/.local/state/aicap-preview/tools/bin:$PATH"
+lizardtail plan --instance main
+lizardtail up --instance main
+lizardtail exec --instance main -- npm run seed:dev
+lizardtail down --instance main  # preserves data and stable URLs
+```
+
+Use the HTTPS app/mail/storage URLs printed by `up`. `admin@test.com` and
+`user@test.com` both use password `password`, with verified emails. Admin is a
+sysadmin and Testchor lead; Test User is an ordinary member without capabilities.
+The idempotent seed resets those credentials, imports bundled MusicXML through the
+normal piece API, and refuses production mode or non-loopback databases. Never use
+it in production. The manifest provides fresh isolated Postgres 17/SeaweedFS,
+generated host-state secrets, FakeProvider, secure HTTPS cookies and native Mailpit
+v1.27 (extracted from compose's pinned image; installed on the host PATH, no relay).
+Mailpit stores mail and its private SMTP socket outside Git in host state. New
+signups' verification mail appears in its browser UI. `SMTP_SOCKET_PATH` is a
+development alternative to SMTP_URL; `S3_PUBLIC_ENDPOINT` controls only signed
+browser downloads while `S3_ENDPOINT` stays internal. `npm run dev` owns a stable
+TCP listener and runs Vite/the backend in a child process. Server/config changes
+replace only that child; client edits still use Vite HMR. Requests arriving during
+restart wait up to 15 seconds for the child. Existing requests/WebSockets may
+disconnect and reconnect; Postgres, mail, storage, Caddy and the worker stay up.
+Worker or dev-runner changes still require `down`/`up`. The dev CLI accepts
+`--host`, `--port` and `--strictPort` and always refuses occupied ports. This also
+works outside Lizardtail; built `npm start` is unchanged. Lizardtail's own
+30-second HTTP-readiness failure policy still applies if the app cannot compile
+or boot for an extended period. Named Tailscale Services need
+host advertisement approval and client ACL grants; local checks cannot prove
+another device's access. See [preview verification](agents/preview.md).
+
+```sh
+npm run typecheck
+npm test
+TZ=America/New_York npm test
+npm run build
+npm run test:integration
+npm run check:secrets
+npm run test:browser
+npm run test:browser:transcription
+npm run eval:transcription -- --dry-run
+npm run db:generate
+npm run test:backup
+npm run test:ops
+```
+
+Integration owns disposable Postgres and launches actual HTTP/dev/start servers;
+SeaweedFS and Mailpit must be running at the compose endpoints. Browser harnesses
+own disposable DB/mail and separate build roots, use real account sessions and
+exercise account/theme, offline/logout, sync/restart and transcription flows.
+CHROMIUM_PATH overrides the executable. Evidence defaults to `.review-evidence/<suite>` (the standard harness uses `browser`);
+set `BROWSER_EVIDENCE` to select a directory, including for admin/final suites;
+never use these harnesses against existing users/production services. They stub
+external AI/mail boundaries, not authorization. The foundation browser suite is
+available separately with `test:browser:foundation` against a local built server
+(`BROWSER_BASE`, `MAILPIT_URL`). It records HTTP/request failures in
+`network-errors.json` and accepts only same-origin session-check 401s issued while
+signed out; all other console errors fail. Concurrent build/test runs should
+use `LIGHTSCORE_BUILD_ROOT="$PWD/.review-evidence/my-build"` so hashed chunks remain
+consistent. Browser harnesses choose per-process build roots; check:secrets uses
+a unique mkdtemp directory under .review-evidence unless LIGHTSCORE_BUILD_ROOT is set.
+An explicit build root is caller-owned and must not be shared with concurrent runs.
+
+`db:generate` should produce no diff unless schema was intentionally changed.
+Review generated SQL + metadata; do not edit applied migrations. `db:migrate` only
+requires DATABASE_URL and serializes via advisory lock 17031501. Backups/restore
+require Docker, write sensitive artifacts outside Git and own their disposable
+containers; see RUNBOOK.md. `npm run ops:canary` needs no database or secrets.
+
+Built local serving: `npm run build`, then `NODE_ENV=test npm start` with local
+SMTP/test config. General /readyz verifies DB and committed migrations; it reports
+sandbox and rehearsal state independently. /readyz/rehearsal is owner-only and must
+not gate rolling-deploy admission. Exactly one web process owns shared rehearsal;
+a standby can serve ordinary HTTP. Socket.IO attaches to the same HTTP server.
+
+For uploads start `npm run worker` separately, with private S3 configuration on both
+services. Development alone may initialize a missing bucket; production never does.
+Configured public browser origin must reach S3 for signed downloads. Preserve originals
+indefinitely; cleanup removes transient artifacts and explicitly deleted ensemble data.
+
+CI runs only when a PR is opened, updated, reopened or marked ready (plus manual reruns), never after merge; see docs/DEPLOYMENT.md. It builds app/worker Docker images without pushing and
+has no deployment permissions. It runs typecheck, UTC/non-UTC unit suites, build,
+sentinel scanner, disposable integration + browser suites, fresh migrations/drift,
+eval replay, backup and graceful operations; Phase 6a migration tests are mandatory; missing scripts fail CI. CI installs the
+rules-test dependencies, Java 21 and caches Firebase emulator jars. SeaweedFS is launched by a workflow Docker step because
+GitHub service definitions cannot set its server command; Postgres and Mailpit use service containers. Integration hosting tests require
+Mailpit SMTP on 21025 and API on 28025 (MAILPIT_URL overrides the API URL);
+each browser harness owns its separate mail fixture. No paid APIs or repository secrets. The legacy standalone rules suite is superseded by app authorization tests, but
+the migration suite uses the local Firestore emulator and its rules-test tooling. Legacy files stay
+for migration/retirement evidence. See DEPLOYMENT.md and SYSADMIN.md for operations.
+
+Migration export/import runs on an operator machine or a dedicated CI job with full
+dependencies. Production images omit firebase-admin, Vite, Vitest, Playwright and drizzle-kit.
+`test:ops` requires `npm run build` first and fails immediately without dist.
