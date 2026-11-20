@@ -1,21 +1,21 @@
-/* Animation frames require CSS keyframes; recipes select the token-backed animation. */
+/* The entrance animation interpolates opacity and rise distance, which requires keyframe stops. */
 
 @keyframes rise {
   from {
     opacity: 0;
-    transform: var(--ds-shell-rise-transform-357);
+    transform: var(--ds-rise-transform);
   }
   to {
-    opacity: var(--ds-shell-rise-opacity-358);
+    opacity: var(--ds-rise-opacity);
     transform: none;
   }
 }
 
-/* Animation frames require CSS keyframes; recipes select the token-backed animation. */
+/* The loading sheen moves its background position through a keyframe endpoint. */
 
 @keyframes shimmer {
   to {
-    background-position: var(--ds-shell-shimmer-background-position-359);
+    background-position: var(--ds-shimmer-background-position);
   }
 }
 
@@ -27,100 +27,100 @@
   initial-value: 108%;
 }
 
-/* Animation frames require CSS keyframes; recipes select the token-backed animation. */
+/* The notation title fades in after engraving completes without replacing the SVG. */
 @keyframes ls-appear {
   from {
     opacity: 0;
   }
   to {
-    opacity: var(--ds-shell-ls-appear-opacity-363);
+    opacity: var(--ds-title-appear-opacity);
   }
 }
-/* Animation frames require CSS keyframes; recipes select the token-backed animation. */
+/* The illuminated title breathes through a midpoint opacity, requiring keyframes. */
 @keyframes ls-breathe {
   0%,
   100% {
-    opacity: var(--ds-shell-ls-breathe-opacity-364);
+    opacity: var(--ds-title-breathe-opacity);
   }
   50% {
-    opacity: var(--ds-shell-ls-breathe-opacity-365);
+    opacity: var(--ds-title-breathe-opacity-dim);
   }
 }
-/* Animation frames require CSS keyframes; recipes select the token-backed animation. */
+/* The typed writing percentage must interpolate from hidden to completed ink. */
 
 @keyframes ink-write {
   from {
-    --written: var(--ds-shell-ink-write-written-366);
+    --written: var(--ds-ink-write-written-start);
   }
   to {
-    --written: var(--ds-shell-ink-write-written-367);
+    --written: var(--ds-ink-write-written-end);
   }
 }
 
-/* Animation frames require CSS keyframes; recipes select the token-backed animation. */
+/* The completed ink oscillates vertically around its original anchor. */
 
 @keyframes ink-float {
   0%,
   100% {
-    transform: var(--ds-shell-ink-float-transform-368);
+    transform: var(--ds-ink-float-transform);
   }
   50% {
-    transform: var(--ds-shell-ink-float-transform-369);
+    transform: var(--ds-ink-float-transform-peak);
   }
 }
 
-/* Animation frames require CSS keyframes; recipes select the token-backed animation. */
+/* The written title briefly peaks in brightness and returns to its settled filter. */
 @keyframes ls-flare {
   0% {
-    filter: var(--ds-shell-ls-flare-filter-370);
+    filter: var(--ds-title-flare-filter);
   }
   28% {
-    filter: var(--ds-shell-ls-flare-filter-371);
+    filter: var(--ds-title-flare-filter-peak);
   }
   100% {
-    filter: var(--ds-shell-ls-flare-filter-372);
+    filter: var(--ds-title-flare-filter);
   }
 }
-/* Animation frames require CSS keyframes; recipes select the token-backed animation. */
+/* The stage ignition uses several timed opacity/filter stops rather than a state transition. */
 @keyframes stage-ignite {
   0% {
-    opacity: var(--ds-shell-stage-ignite-opacity-373);
-    filter: var(--ds-shell-stage-ignite-filter-374);
+    opacity: var(--ds-stage-ignite-opacity-start);
+    filter: var(--ds-stage-ignite-filter-start);
   }
   4% {
-    opacity: var(--ds-shell-stage-ignite-opacity-375);
-    filter: var(--ds-shell-stage-ignite-filter-376);
+    opacity: var(--ds-stage-ignite-opacity-rise);
+    filter: var(--ds-stage-ignite-filter-rise);
   }
   9% {
-    opacity: var(--ds-shell-stage-ignite-opacity-377);
-    filter: var(--ds-shell-stage-ignite-filter-378);
+    opacity: var(--ds-stage-ignite-opacity-dip);
+    filter: var(--ds-stage-ignite-filter-dip);
   }
   14% {
-    opacity: var(--ds-shell-stage-ignite-opacity-379);
-    filter: var(--ds-shell-stage-ignite-filter-380);
+    opacity: var(--ds-stage-ignite-opacity-surge);
+    filter: var(--ds-stage-ignite-filter-surge);
   }
   19% {
-    opacity: var(--ds-shell-stage-ignite-opacity-381);
-    filter: var(--ds-shell-stage-ignite-filter-382);
+    opacity: var(--ds-stage-ignite-opacity-settle);
+    filter: var(--ds-stage-ignite-filter-settle);
   }
   26% {
-    opacity: var(--ds-shell-stage-ignite-opacity-383);
-    filter: var(--ds-shell-stage-ignite-filter-384);
+    opacity: var(--ds-stage-ignite-opacity-peak);
+    filter: var(--ds-stage-ignite-filter-peak);
   }
   100% {
-    opacity: var(--ds-shell-stage-ignite-opacity-385);
-    filter: var(--ds-shell-stage-ignite-filter-386);
+    opacity: var(--ds-stage-ignite-opacity-end);
+    filter: var(--ds-stage-ignite-filter-end);
   }
 }
-/* Animation frames require CSS keyframes; recipes select the token-backed animation. */
-@keyframes tx-flash {from{opacity:var(--ds-shell-tx-flash-opacity-387)}to{opacity:var(--ds-shell-tx-flash-opacity-388)}}
-/* Animation frames require CSS keyframes; recipes select the token-backed animation. */
-@keyframes tx-pulse {50%{opacity:var(--ds-shell-tx-pulse-opacity-389)}}
+/* The review target flashes from highlighted to resting wash opacity. */
+@keyframes tx-flash {from{opacity:var(--ds-transcription-flash-opacity)}to{opacity:var(--ds-transcription-flash-opacity-end)}}
+/* The running transcription segment pulses through its intermediate opacity. */
+@keyframes tx-pulse {50%{opacity:var(--ds-transcription-pulse-opacity)}}
 
 /* Verovio creates these SVG label nodes; retain their typography before review getBBox measurement. */
 .tx-score-page svg .label {
-  font: var(--ds-player-label-font-148);
-  letter-spacing: var(--ds-player-label-letter-spacing-149);
+  font: var(--ds-player-label-font);
+  letter-spacing: var(--ds-tracking-label);
   text-transform: uppercase;
   color: var(--ds-ink-muted);
 }

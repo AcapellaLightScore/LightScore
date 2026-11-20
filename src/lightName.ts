@@ -1,4 +1,4 @@
-import { shellRecipe } from "./design-system/recipes/shell";
+import { titleArtworkRecipe } from "./design-system/recipes/shell";
 import { matchBreakpoint, readTheme, memoizeByTheme, subscribeTheme, getThemeRevision } from './design-system/theme';
 // The title screen's name, LightScore: "Light" moves, "Score" holds. "Score" appears in the middle,
 // in embossed gold; the voice lines of light come in with it, a loose swarm, and as their tips reach
@@ -163,10 +163,10 @@ export function lightScoreName(host: HTMLElement, mode: TitleMode = 'swarm'): Ti
   host.textContent = '';
   host.setAttribute('aria-label', 'LightScore');
   const wrap = document.createElement('span');
-  wrap.className = shellRecipe(mode === 'staff' ? 'ls-name staff' : mode === 'stage' ? 'ls-name on-stage' : 'ls-name');
+  wrap.className = titleArtworkRecipe().root + (mode === "staff" ? " staff" : mode === "stage" ? " on-stage" : "");
   wrap.setAttribute('aria-hidden', 'true');
   const light = document.createElement('canvas');
-  light.className = shellRecipe("ls-light");
+  light.className = titleArtworkRecipe().light;
   const score = document.createElement('canvas');
   score.className = 'ink ls-score';
   wrap.append(light, score);
@@ -277,8 +277,8 @@ export function lightScoreName(host: HTMLElement, mode: TitleMode = 'swarm'): Ti
       const y = nib.y * dpr;
       const r = art.size * 0.09 * dpr;
       const spot = ctx.createRadialGradient(x, y, 0, x, y, r);
-      spot.addColorStop(0, readTheme().color('title-name-flare-core').rgba(0.8 * k));
-      spot.addColorStop(0.3, readTheme().color('title-name-flare-edge').rgba(0.25 * k));
+      spot.addColorStop(0, readTheme().color('title-name-flare-core').rgba(Number(readTheme().roles['title-name-flare-core-alpha']) * k));
+      spot.addColorStop(0.3, readTheme().color('title-name-flare-edge').rgba(Number(readTheme().roles['title-name-flare-edge-alpha']) * k));
       spot.addColorStop(1, readTheme().color('title-name-flare-edge').rgba(0));
       ctx.fillStyle = spot;
       ctx.fillRect(x - r, y - r, r * 2, r * 2);
@@ -300,7 +300,7 @@ export function lightScoreName(host: HTMLElement, mode: TitleMode = 'swarm'): Ti
     // On a phone's staff the name starts the line and leaves its end to the voices (titleStaff.ts).
     const narrowStaff = mode === 'staff' && matchBreakpoint('wordmark', 'below').matches;
     const fit = Math.min(1, (window.innerWidth * (narrowStaff ? 0.62 : 0.9)) / (lightW + base * (GAP + 2.95)));
-    wrap.style.marginLeft = narrowStaff ? '6px' : '';
+    wrap.style.marginLeft = narrowStaff ? readTheme().roles['light-name-letter-spacing'] : '';
     host.style.alignSelf = narrowStaff ? 'stretch' : '';
     const size = base * fit;
 

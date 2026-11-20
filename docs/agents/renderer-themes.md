@@ -4,8 +4,10 @@ Canvas consumers read the immutable `design-system/theme` snapshot. `theme.ts`, 
 and `design.ts` retain only the compatibility bindings still used by callers. Fonts at canvas
 sinks use `snapshot.fonts`; part assignments use `colorForPart(index, count, snapshot)`.
 
-A snapshot selects typed material strategies from the authored `material-fibre` and
-`color-scheme` roles: paper versus waves, ink versus additive light. The formulas, trace paths,
+A snapshot selects paper versus waves from `material-fibre`, and a typed renderer strategy
+from each theme’s `material-strategy` role (`ink` or `light`). Browser `color-scheme` does
+not select renderer behavior. The strategy supplies paper kind (device choice or parchment),
+lantern compositing, ribbon glow/line compositing and compatibility light flags. The formulas, trace paths,
 notation geometry and animation timing remain in their original renderer modules. CSS minifiers may
 serialize sRGB tokens as named colors; the accessor resolves valid names through a cached canvas
 on the snapshot cold path and still rejects invalid/contextual values. The traced
@@ -32,7 +34,7 @@ A4, margins and engraving defaults remain in `exportPdf.ts`.
 
 ## Exact renderer roles
 
-The pre-P2 appearance (`46831e3`) is retained by distinct inputs in `tokens.css`: gel deep
+The original appearance is retained by distinct inputs in `tokens.css`: gel deep
 shading, lantern cavity/occlusion/glow, paper strand/light/fleck/transmission, wordmark rim,
 individual name/ribbon/stage/staff temperatures, wave shades/grounds, cover ground, keyboard
 separator/shadow, row/hole-edge shadows and brand tile. Theme-independent inputs live in
@@ -84,3 +86,19 @@ Lantern as its style changes; title ribbons select the current/earlier draft fro
 and dispose/recreate their interactive field when that strategy changes. Explicit title drafts
 and roll overrides remain device choices. Covers have no retained color state; title layers
 and backdrop already invalidate through their theme subscriptions.
+
+### Material strategy
+
+Each theme authors `--ds-material-strategy: light | ink`, independent of its browser
+`color-scheme`. The typed snapshot maps `light` to device-selected paper, source-over
+lanterns and additive ribbons; `ink` to pergament, multiplied lanterns/glows and
+source-over ribbon lines. Night paper/Velvet select `light`; Parchment selects `ink`.
+These roles preserve the previous pixels without using browser scheme as a material policy.
+
+### Canvas reset constants
+
+The eight remaining literal `globalAlpha = 1` writes reset drawing state before the next
+layer; they do not choose paint strength. The two `shadowBlur = 0` writes in `lightName.ts`
+and `titleStage.ts` end the glow pass so the crisp foreground is drawn without shadow.
+These are canvas state resets, independent of theme. Staff (12) and roll (18) sounding-note
+glow blur are design values and now consume `score-staff-glow-blur` / `score-roll-glow-blur`.

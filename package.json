@@ -15,7 +15,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env --import tsx scripts/migrate.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run tests/dev-reload.test.ts tests/offline.test.ts tests/offline-library.test.ts tests/transcription-ui.test.ts tests/unit.test.ts tests/rehearsal.test.ts tests/rehearsal-server.test.ts tests/transcription-core.test.ts tests/reference-comparison.test.ts tests/evaluation.test.ts tests/usage.test.ts tests/design-system.test.ts tests/renderer-theme.test.ts tests/design-primitives.test.ts tests/design-recipes.test.ts tests/design-token-guard.test.mjs",
+    "test": "vitest run tests/dev-reload.test.ts tests/offline.test.ts tests/offline-library.test.ts tests/transcription-ui.test.ts tests/unit.test.ts tests/rehearsal.test.ts tests/rehearsal-server.test.ts tests/transcription-core.test.ts tests/reference-comparison.test.ts tests/evaluation.test.ts tests/usage.test.ts tests/design-system.test.ts tests/renderer-theme.test.ts tests/design-primitives.test.ts tests/design-recipes.test.ts tests/design-token-guard.test.mjs tests/design-token-policy.test.mjs",
     "test:integration": "node scripts/integration.mjs",
     "check:secrets": "node scripts/check-secrets.mjs",
     "accounts:cleanup": "node --env-file-if-exists=.env --import tsx scripts/cleanup-accounts.ts",
@@ -40,9 +40,17 @@
     "ops:canary": "node --import tsx scripts/ops-canary.ts",
     "test:ops": "node --import tsx scripts/ops-shutdown-test.mjs",
     "seed:dev": "node --env-file-if-exists=.env --import tsx scripts/seed-dev.ts",
-    "check:design-tokens": "node scripts/check-design-tokens.mjs"
+    "check:design-tokens": "node scripts/check-design-tokens.mjs",
+    "test:browser:design-system": "node scripts/browser-design-dev.mjs",
+    "test:browser:keyboard": "P4C_KEYBOARD=1 DESIGN_BROWSER_SCRIPT=scripts/browser-p4c-parity.mjs node scripts/browser-design-dev.mjs",
+    "test:browser:admin-parity": "BROWSER_SCRIPT=scripts/browser-admin-parity.mjs node scripts/browser-isolated.mjs",
+    "test:browser:auth-flows": "BROWSER_SCRIPT=scripts/browser-auth-p4a-flows.mjs node scripts/browser-isolated.mjs",
+    "test:design-mutants": "node scripts/design-mutants.mjs",
+    "test:browser:design-parity": "node scripts/browser-design-parity.mjs",
+    "check:design-utilities": "node scripts/check-design-utilities.mjs"
   },
   "devDependencies": {
+    "@tailwindcss/node": "4.3.5",
     "@tailwindcss/vite": "4.3.5",
     "@types/jsdom": "^30.0.0",
     "@types/node": "^22.20.5",

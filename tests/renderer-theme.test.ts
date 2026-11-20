@@ -17,7 +17,7 @@ async function clientTheme() {
   for (const role of fontRoles) values['--ds-font-' + role] = 'Snapshot Font';
   for (let i = 1; i <= 8; i++) values['--ds-voice-' + i] = `rgb(${i * 20}, 40, 60)`;
   Object.assign(values, { '--ds-print-paper': '#ffffff', '--ds-print-ink': '#000000', '--ds-print-font-text': 'Print Font',
-    '--ds-print-font-music': 'Music Font', '--ds-color-scheme': 'dark', '--ds-material-fibre': 'none',
+    '--ds-print-font-music': 'Music Font', '--ds-color-scheme': 'dark', '--ds-material-strategy': 'light', '--ds-material-fibre': 'none',
     '--ds-voice-fallback-hue-step': '47', '--ds-voice-fallback-saturation': '70', '--ds-voice-fallback-lightness': '72' });
   const computed = vi.fn(() => ({ getPropertyValue: (key: string) => values[key] ?? '' }));
   vi.stubGlobal('getComputedStyle', computed);
@@ -50,11 +50,11 @@ it('uses supplied spectrum/fallback inputs for all voice counts and keeps frozen
   expect(colorForPart(7, 8, theme)).toBe(theme.spectrum[7].css);
   expect(colorForPart(2, 12, theme)).toBe('hsl(94, 70%, 72%)');
   expect(computed).toHaveBeenCalledTimes(reads);
-  values['--ds-color-scheme'] = 'light';
+  values['--ds-material-strategy'] = 'ink'; // Browser scheme deliberately remains dark.
   values['--ds-material-fibre'] = 'paper texture';
   values['--ds-print-ink'] = '#987654';
   api.notifyThemeMaterialChange();
-  expect(api.readTheme().material).toEqual({ surface: 'paper', light: 'ink', composite: 'multiply', onLight: true });
+  expect(api.readTheme().material).toEqual({ surface: 'paper', strategy: 'ink', light: 'ink', composite: 'multiply', onLight: true, paperKind: 'pergament', lanternComposite: 'multiply', ribbonLineComposite: 'source-over' });
   expect(Object.isFrozen(print)).toBe(true);
   expect(print.ink.css).toBe('rgb(0, 0, 0)');
   expect(api.readTheme().print.ink.css).toBe('rgb(152, 118, 84)');
@@ -170,8 +170,8 @@ it('preserves every pre-P2 renderer pigment across all three themes', async () =
       expect(colorRoles, `${role} must be available in a concrete snapshot`).toContain(role);
       expect(themeRoleNames).toContain(role);
       expect(normalizeColor(resolve('--ds-' + role)).css, `${theme}: ${role}`).toBe(normalizeColor(colors[index]).css);
-      if (new Set(colors).size === 1) expect(shared.has('--ds-' + role)).toBe(true);
-      else expect(shared.has('--ds-' + role)).toBe(false);
+      // Even a currently identical screen pigment belongs to each complete theme mapping.
+      expect(shared.has('--ds-' + role)).toBe(false);
     }
   }
 });
@@ -288,5 +288,39 @@ it('preserves the historical per-theme intensity inputs and separates screen/pri
   }
   for (const file of ['theme', 'pianoRoll', 'paper', 'lightName', 'titleStage', 'titleStaff', 'artwork', 'inkWordmark', 'lantern']) {
     expect(readFileSync(`src/${file}.ts`, 'utf8'), `${file} screen inputs`).not.toContain('.print.paper');
+  }
+});
+
+it('keeps canvas alpha and pigment mixing strengths in numeric theme roles', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { default: ts } = await import('typescript');
+  const { default: postcss } = await import('postcss');
+  const css=postcss.parse(readFileSync('src/design-system/tokens.css','utf8'));
+  const declared=new Map<string,string>();css.walkDecls(d=>{declared.set(d.prop,d.value);});
+  for(const name of ['lightName','titleStage','titleStaff','artwork','theme','pianoRoll','overview','lightRibbons','lantern','inkWordmark']) {
+    const source=readFileSync(`src/${name}.ts`,'utf8');
+    for(const match of source.matchAll(/roles\['([^']+(?:alpha|mix|factor)(?:-[a-z]+)?)'\]/g)) {
+      expect(themeRoleNames,`${name}: ${match[1]}`).toContain(match[1]);
+      expect(Number.isFinite(Number(declared.get('--ds-'+match[1]))),match[1]).toBe(true);
+    }
+    const ast=ts.createSourceFile(name+'.ts',source,ts.ScriptTarget.Latest,true);
+    function visit(node: import('typescript').Node) {
+      if(ts.isCallExpression(node)) {
+        const callee=node.expression.getText(ast);
+        const alpha=callee.endsWith('.rgba') || callee==='paper' ? node.arguments[0] : ['withAlpha','towardPaper','towardInk'].includes(callee) ? node.arguments[1] : undefined;
+        if(alpha) {
+          function strength(child: import('typescript').Node) {
+            // Gaussian sample coordinates shape a mask; they are renderer geometry, not paint strength.
+            if(ts.isCallExpression(child) && child.expression.getText(ast)==='Math.exp')return;
+            if(ts.isNumericLiteral(child) && +child.text>0 && +child.text<1)
+              throw Error(`${name}: raw canvas paint strength ${child.getText(ast)} in ${node.getText(ast)}`);
+            ts.forEachChild(child,strength);
+          }
+          strength(alpha);
+        }
+      }
+      ts.forEachChild(node,visit);
+    }
+    visit(ast);
   }
 });

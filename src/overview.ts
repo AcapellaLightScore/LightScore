@@ -90,14 +90,14 @@ export class OverviewStrip {
     const bottom = this.laneBottom();
     const y = (midi: number) => bottom - ((midi - this.lo) / Math.max(1, this.hi - this.lo)) * (bottom - top);
     for (const m of this.score.measures) {
-      ctx.fillStyle = paper(0.06);
+      ctx.fillStyle = paper(Number(readTheme().roles['score-overview-bar-alpha']));
       ctx.fillRect(Math.round(this.beatToX(m.startBeat)), top - 3, 1, bottom - top + 6);
     }
     const lineH = this.cssHeight > 40 ? 2 : 1.6;
     for (const dimPass of [true, false]) {
       for (const part of this.score.parts) {
         if (this.hidden.has(part.id) || this.dimmed.has(part.id) !== dimPass) continue;
-        ctx.fillStyle = withAlpha(this.partColor(part.id), dimPass ? 0.3 : 0.95);
+        ctx.fillStyle = withAlpha(this.partColor(part.id), dimPass ? Number(readTheme().roles['score-overview-voice-dim-alpha']) : Number(readTheme().roles['score-overview-voice-active-alpha']));
         for (const n of this.score.notes) {
           if (n.partId !== part.id) continue;
           const x = this.beatToX(n.startBeat);
@@ -120,16 +120,16 @@ export class OverviewStrip {
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     // Transparent: the strip sits on the glass of its container (see style.css).
     ctx.clearRect(0, 0, this.cssWidth, this.cssHeight);
-    ctx.fillStyle = paper(0.09);
+    ctx.fillStyle = paper(Number(readTheme().roles['score-overview-edge-alpha']));
     ctx.fillRect(0, 0, this.cssWidth, 1);
     const top = this.laneTop();
     const bottom = this.laneBottom();
     if (this.loop) {
       const x1 = this.beatToX(this.loop.start);
       const x2 = this.beatToX(this.loop.end);
-      ctx.fillStyle = paper(0.12);
+      ctx.fillStyle = paper(Number(readTheme().roles['score-overview-loop-fill-alpha']));
       ctx.fillRect(x1, top - 4, x2 - x1, bottom - top + 8);
-      ctx.fillStyle = paper(0.55);
+      ctx.fillStyle = paper(Number(readTheme().roles['score-overview-loop-edge-alpha']));
       ctx.fillRect(Math.round(x1), top - 4, 1, bottom - top + 8);
       ctx.fillRect(Math.round(x2), top - 4, 1, bottom - top + 8);
     }

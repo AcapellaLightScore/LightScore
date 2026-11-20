@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import postcss from 'postcss';
+import {geometryRole, hasUnitlessZero, invalidTokenName, lengthAtoms, scaleRole, scaleSteps} from './design-token-policy.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const baselinePath = path.join(root, 'scripts/design-token-baseline.json');
@@ -11,7 +12,33 @@ const colorAtom = /#[\da-f]{3,8}\b|(?:rgba?|hsla?|hwb|oklch|oklab|lab|lch|color)
 const namedColors = new Set(('aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen darkslateblue darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue slateblue slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen').split(' '));
 const fontStack = /(?:['"](?:Atkinson[^'";]+|Bodoni[^'";]+|Baltimore[^'";]+|Remington[^'";]+|Modern Antique[^'";]+|Italianno|LightScore Engraving|Bravura)['"][^;\n]*|(?:system-ui|ui-monospace|sans-serif|monospace|\bserif\b|\bcursive\b))/g;
 const paletteClass = /(?:^|\s)tw:(?:[\w-]+:)*(?:bg|text|border|outline|ring|fill|stroke|shadow|from|via|to|decoration|accent|caret)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|white|black)(?:-\d+)?(?:\/\d+)?\b/g;
-const arbitraryAesthetic = /(?:^|\s)tw:(?:[\w-]+:)*-?(?:(?:bg|text|border|outline|ring|fill|stroke|font|rounded|shadow|tracking|leading|opacity|duration|ease|from|via|to|p[xysetblr]?|m[xysetblr]?|gap(?:-[xy])?|space-[xy]|inset(?:-[xy])?|top|right|bottom|left|start|end|w|h|size|min-[wh]|max-[wh]|z|basis)-(?:\[[^\]]+\]|\([^)]*\))|\[(?:color|background|font|border|box-shadow|border-radius|padding|margin|gap|width|height|inset|z-index)[^\]]*\])/g;
+// Every arbitrary-valued utility is covered, including nested selector variants.
+
+const numberedName = /-\d+(?:px|rem|em|ms)?(?:$|[^\w-])/;
+// The semantic migration is complete: generated/value-encoding names cannot return.
+export const enforceSemanticNames = true;
+export function checkSemanticName(name) {
+  // Voice/spectrum positions and backdrop wave families are actual indexed data.
+  if (/^--(?:ds-(?:icon-)?|pigment-)?(?:voice-[1-8]|backdrop-wave-[1-6])(?:-parchment)?$/.test(name)) return false;
+  if (/^tw:(?:[\w-]+:)*(?:-?translate-[xy]|border-[trblxy]|grid-cols|grid-rows|col-span|row-span|col-start|col-end|row-start|row-end|flex|shrink|grow|order|line-clamp|border|outline|inset|top|bottom|left|right|translate-[xy])-(?:0|[1-9]\d*|1\/2)$/.test(name)) return false;
+  return numberedName.test(name);
+}
+const authoredCss = postcss.parse(fs.readFileSync(path.join(root, 'src/design-system/tokens.css'), 'utf8'));
+const authoredScale = scaleSteps(authoredCss);
+const adapterTokens = new Set([...fs.readFileSync(path.join(root, 'src/design-system/tokens.css'), 'utf8').matchAll(/(--[\w-]+)\s*:\s*var\(--ds-/g)].map(m => m[1]));
+function mappedScale(utility) {
+  // A named color/type role can itself end in a numeral; verify the complete
+  // explicitly authored adapter before interpreting a numeric default scale.
+  const named = utility.match(/^(?:bg|text|border|outline|ring|fill|stroke|from|via|to|decoration|accent|caret)-(.+)$/);
+  if (named && adapterTokens.has('--color-'+named[1])) return true;
+  const match = utility.match(/^(-?)([a-z][\w-]*?)-(\d+(?:\.\d+)?|full)$/);
+  if (!match) return true;
+  const [, , prop, value] = match;
+  const namespace = /^(?:p[xysetblr]?|m[xysetblr]?|gap(?:-[xy])?|space-[xy]|inset(?:-[xy])?|top|right|bottom|left|start|end|w|h|size|min-[wh]|max-[wh]|basis|translate-[xy])$/.test(prop) ? 'spacing' : ({duration:'duration',delay:'delay',z:'z-index',border:'border-width',rounded:'radius',opacity:'opacity',text:'text',leading:'leading',tracking:'tracking',blur:'blur',outline:'outline-width',ring:'ring-width',font:'font-weight'})[prop];
+  // Grid counts, flex ratios, order and percentages describe structural layout.
+  return /^(?:grid-cols|grid-rows|col-span|row-span|col-start|col-end|row-start|row-end|flex|shrink|grow|order|line-clamp)$/.test(prop) || adapterTokens.has(`--${namespace ?? prop}-${value}`) || (value === '0' && !['font','text'].includes(prop)) || (value === 'full' && namespace === 'spacing');
+}
+
 /** Named, structural exceptions for data that is not a theme value. */
 export const exceptionRules = {
   'paper-noise-geometry': 'Paper formation/flocs/tooth triples are [cell count X, cell count Y, amplitude], never RGB channels.',
@@ -20,6 +47,8 @@ export const exceptionRules = {
   'ink-interpolation-registration': '@property requires a computationally independent initial percentage; 108% is the completed ink-writing geometry.',
 };
 export const ruleVersions = {};
+// Reviewed fixed brand SVGs only: path -> SHA-256. No authored SVG currently needs an exception.
+export const brandArtworkHashes = Object.freeze({});
 function cssLengths(value) {
   // Asset URLs and quoted font/content identities are not CSS dimensions.
   const syntax = value.replace(/url\((?:[^()'"]|'[^']*'|"[^"]*")*\)/gi, '').replace(/(['"])(?:\\.|(?!\1).)*?\1/g, '');
@@ -43,6 +72,7 @@ function namedTokens(value) {
 }
 function tokenFont(value) {
   if (/^(?:inherit|initial)$/.test(value.trim())) return true;
+  if (/^--value\(--type-\*\)$/.test(value.trim())) return true;
   const normalized = value.replace(/var\(\s*--[\w-]+(?:,\s*(?:inherit|initial))?\s*\)/g, 'TOKEN').replace(/(?:clamp|min|max|calc)\([^)]*\)/g, '1px').trim();
   return /^(?:(?:normal|italic|oblique|bold|[\d.]+(?:px|rem|em|%|pt)?)(?:\/[\d.]+(?:px|rem|em|%|pt)?)?\s+)*TOKEN$/.test(normalized);
 }
@@ -62,7 +92,8 @@ function files(dir = root) {
     return productFile(rel) ? [rel] : [];
   });
 }
-export function scanDesignFile(file, source) {
+export function scanDesignFile(file, source, options = {}) {
+  const enforceNames = options.semanticNames ?? enforceSemanticNames;
   const tokenSource = allowed.has(file);
   const entries = [];
   const add = (kind, context, value) => entries.push({ file, kind, context: normalize(context), value: normalize(value) });
@@ -75,15 +106,50 @@ export function scanDesignFile(file, source) {
       for (const word of namedTokens(text)) add('named-color', context, word);
     }
   }
+  function semanticArbitrary(utility) {
+    if (/(?:-(?:\((?:[a-z-]+:)?--ds-[\w-]+\)|\[(?:[a-z-]+:)?var\(--ds-[\w-]+\)\])|^\[[a-z-]+:var\(--ds-[\w-]+\)\])$/.test(utility)) return true;
+    // Native cascade keywords select inheritance/structure, not authored design values.
+    if (/^\[-?[a-z-]+:(?:inherit|revert|initial|unset|none)\]$/.test(utility)) return true;
+    const variables = [...utility.matchAll(/(?:var\(\s*|[:(])(--[\w-]+)/g)].map(m=>m[1]);
+    // Element-local voice paint, pointer tilt and writing progress/delays are runtime inputs.
+    return variables.length > 0 && namedTokens(utility.replace(/_/g, ' ')).length === 0 && variables.every(v=>v.startsWith('--ds-') || ['--c','--rx','--ry','--written','--ded-delay','--ded-wait'].includes(v)) && !/(?:#[\da-f]{3,8}\b|\d+(?:px|rem|em|ms|s|deg|%)\b|rgba?\(|hsla?\()/i.test(utility);
+  }
   function classes(text, context) {
     for (const match of text.matchAll(paletteClass)) add('palette-utility', context, match[0]);
-    for (const match of text.matchAll(arbitraryAesthetic)) if (!/-(?:\(--ds-[\w-]+\)|\[var\(--ds-[\w-]+\)\])$/.test(match[0])) add('arbitrary-aesthetic', context, match[0]);
+    for (const word of text.match(/tw:[^\s\"'`]+/g) ?? []) {
+      if (/(?:^|:)dark:/.test(word)) add('theme-variant', context, word);
+      if (/tw:(?:[^\s]*:)?(?:max|min)-\[[^\]]+\]:/.test(word)) add('raw-media-query', context, word);
+      if (/data-(?:theme|type|design|ground)\s*[=\]]/.test(word)) add('legacy-theme-selector', context, word);
+      if (/@media/.test(word) && /(?:width|height)[^)]*\d+(?:px|rem|em|vw|vh|dvw|dvh)\b/.test(word)) add('raw-media-query', context, word);
+      // A variant's brackets can contain colons and nested attribute selectors.
+      let depth = 0, lastColon = 2;
+      for (let i = 3; i < word.length; i++) {
+        if ('[('.includes(word[i])) depth++;
+        if ('])'.includes(word[i])) depth--;
+        if (word[i] === ':' && depth === 0) lastColon = i;
+      }
+      const utility = word.slice(lastColon + 1).replace(/!$/, '');
+      if ((/-\[[^]*\]$|^-?\[[^]*\]$|^-?[\w-]+-\([^]*\)$/.test(utility)) && !semanticArbitrary(utility) && utility !== 'content-[attr(data-label)]') add('arbitrary-aesthetic', context, word);
+      if (!mappedScale(utility)) add('unmapped-scale-utility', context, word);
+      if (enforceNames && checkSemanticName("tw:" + utility)) add('value-encoding-name', context, word);
+    }
     for (const match of text.matchAll(defaultFont)) add('default-font-utility', context, match[0]);
   }
   if (file.endsWith('.css')) {
     const tree = postcss.parse(source);
+    const steps = new Set([...authoredScale,...scaleSteps(tree)]);
     tree.walkDecls(decl => {
-      if (tokenSource) return;
+      if (invalidTokenName(decl.prop)) add('token-name-shape', decl.prop, decl.prop);
+      if (enforceNames && checkSemanticName(decl.prop)) add('value-encoding-name', decl.prop, decl.prop);
+      if (tokenSource) {
+        if (decl.prop.startsWith('--ds-') && !scaleRole.test(decl.prop)) for (const atom of lengthAtoms(decl.value)) if (steps.has(atom.key)) add('uncomposed-scale-length',decl.prop,atom.raw);
+        if (!scaleRole.test(decl.prop) && geometryRole.test(decl.prop) && steps.has('0px') && hasUnitlessZero(decl.value)) add('uncomposed-scale-length',decl.prop,'0');
+        const themed = decl.parent.type === 'rule' && /data-theme\s*=/.test(decl.parent.selector);
+        // Print is intentionally independent of the device appearance (D18).
+        const fixedPrint = ['--ds-print-paper','--ds-print-ink'].includes(decl.prop);
+        if (decl.prop.startsWith('--') && !decl.prop.startsWith('--pigment-') && !themed && !fixedPrint && (/(?:#[\da-f]{3,8}\b|(?:rgba?|hsla?|hwb|oklch|oklab|lab|lch|color)\(|var\(\s*--pigment-)/i.test(decl.value) || namedTokens(decl.value).length > 0 && !/^(?:--ds-font-|--ds-print-font-|--ds-type-.*font)/.test(decl.prop))) add('shared-screen-color', decl.prop, decl.value);
+        return;
+      }
       const ancestry = []; let node = decl.parent;
       while (node && node.type !== 'root') { ancestry.unshift(node.selector ?? `@${node.name} ${node.params ?? ''}`); node = node.parent; }
       const context = ancestry.join(' / ') + ' / ' + decl.prop;
@@ -98,17 +164,28 @@ export function scanDesignFile(file, source) {
       if (/--pigment-/.test(decl.value)) add('primitive-import', context, decl.value);
     });
     tree.walkAtRules(rule => {
-      if (rule.name === 'import' && file !== 'src/design-system/app.css' && !/\blayer(?:\s*\(|\s*;|$)/.test(rule.params)) add('unlayered-css-import', '@import', rule.params);
-      if (!file.startsWith('src/design-system/') && rule.name === 'media' && /\b(?:width|height)\s*[:<>=][^)]*\d+(?:px|rem|em)\b/.test(rule.params)) add('raw-media-query', '@media', rule.params);
+      if (rule.name === 'import' && !/\blayer\s*\(\s*[\w.-]+\s*\)/.test(rule.params)) add('unlayered-css-import', '@import', rule.params);
+      if (['media', 'custom-variant', 'container'].includes(rule.name) && /(?:\b(?:width|height)\s*[:<>=][^)]*\d+(?:px|rem|em|vw|vh|dvw|dvh)\b|\d+(?:px|rem|em|vw|vh|dvw|dvh)\s*[<>=]+\s*(?:width|height)\b)/.test(rule.params)) add('raw-media-query', '@' + rule.name, rule.params);
+      if (enforceNames && ['utility', 'custom-variant'].includes(rule.name) && checkSemanticName(rule.params.split(/[\s({]/)[0])) add('value-encoding-name', '@' + rule.name, rule.params);
     });
     tree.walkRules(rule => {
-      if (/data-(?:design|ground)\s*[=\]]/.test(rule.selector)) add('legacy-theme-selector', rule.selector, rule.selector);
+      if (/data-(?:design|ground)\s*[=\]]/.test(rule.selector) || (!tokenSource && /data-(?:theme|type)\s*[=\]]/.test(rule.selector))) add('legacy-theme-selector', rule.selector, rule.selector);
       if (file.startsWith('src/design-system/')) return;
       if (/(?:^|[\s>+~])(?:button|input|select|textarea)(?:[\s.:[>#]|$)/.test(rule.selector) && /[.#][\w-]+/.test(rule.selector)) add('screen-control-selector', rule.selector, rule.selector);
     });
     return entries;
   }
-  if (!/\.[cm]?[jt]sx?$/.test(file)) { colors(source, 'asset'); return entries; }
+  if (!/\.[cm]?[jt]sx?$/.test(file)) {
+    const brandHash=(options.brandArtworkHashes??brandArtworkHashes)[file];
+    if(file.endsWith('.svg')&&brandHash===createHash('sha256').update(source).digest('hex'))return entries;
+    colors(source, 'asset');
+    if (file.endsWith('.svg')) {
+      for (const attr of source.matchAll(/\b(fill|stroke|stop-color|flood-color|lighting-color|color)\s*=\s*(['"])(.*?)\2/gi))
+        for (const color of namedTokens(attr[3])) add('named-color','SVG '+attr[1],color);
+      for (const style of source.matchAll(/\bstyle\s*=\s*(['"])(.*?)\1/gi)) colors(style[2],'SVG style',true);
+    }
+    return entries;
+  }
   const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, file.endsWith('tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
   function context(node) {
     let current = node;
@@ -127,6 +204,18 @@ export function scanDesignFile(file, source) {
     ts.forEachChild(node, collect);
   }
   collect(ast);
+  const destructuredThemeIds = new Set();
+  function fromTheme(node, seen=new Set()) {
+    if(!node)return false;
+    if(ts.isIdentifier(node)&&declarations.has(node.text)&&!seen.has(node.text))return fromTheme(declarations.get(node.text),new Set([...seen,node.text]));
+    return ts.isCallExpression(node)&&/(?:^|\.)(readTheme|useTheme)$/.test(node.expression.getText(ast));
+  }
+  function collectThemeIds(node) {
+    if(ts.isVariableDeclaration(node)&&ts.isObjectBindingPattern(node.name)&&fromTheme(node.initializer))for(const binding of node.name.elements)
+      if((binding.propertyName??binding.name).getText(ast)==='id'&&ts.isIdentifier(binding.name))destructuredThemeIds.add(binding.name.text);
+    ts.forEachChild(node,collectThemeIds);
+  }
+  collectThemeIds(ast);
   function rawChannels(node, result = []) {
     // paper-noise-geometry: exclude only tuples directly in those three named noise fields.
     if (file === 'src/paper.ts' && ts.isArrayLiteralExpression(node) && ts.isArrayLiteralExpression(node.parent) && ts.isPropertyAssignment(node.parent.parent) && ['formation','flocs','tooth'].includes(node.parent.parent.name.getText(ast))) return result;
@@ -143,10 +232,20 @@ export function scanDesignFile(file, source) {
     }
   }
   function checkSink(node) {
+    function computed(n, seen = new Set()) {
+      if (ts.isIdentifier(n) && declarations.has(n.text)) { if(!seen.has(n.text)) { const next = new Set([...seen,n.text]); computed(declarations.get(n.text), next); } return; }
+      if (ts.isNumericLiteral(n) && /^0x[\da-f]+$/i.test(n.getText(ast))) add('numeric-color-at-sink', context(node), n.getText(ast));
+      if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.PlusToken && /['"](?:rgba?|hsla?|hwb|oklch|oklab|lab|lch|color)\(/i.test(n.getText(ast))) add('computed-color-at-sink', context(node), n.getText(ast));
+      if (ts.isTemplateExpression(n) && /(?:rgba?|hsla?|hwb|oklch|oklab|lab|lch|color)\(/i.test(n.head.text)) add('computed-color-at-sink', context(node), n.getText(ast));
+      ts.forEachChild(n, child => computed(child, seen));
+    }
+    computed(node);
+    for (const id of references(node)) if (declarations.has(id)) computed(declarations.get(id));
     for (const raw of rawChannels(node)) add('raw-channels-at-sink', context(node), raw);
     for (const id of references(node)) for (const raw of sources.get(id) ?? []) add('raw-channels-at-sink', context(node) + ' <- ' + id, raw);
   }
   const outsideSystem = !file.startsWith('src/design-system/');
+  const outsideTheme = !/^src\/design-system\/theme\//.test(file);
   function fontFromTheme(node, seen = new Set()) {
     if (ts.isIdentifier(node) && declarations.has(node.text) && !seen.has(node.text)) { seen.add(node.text); return fontFromTheme(declarations.get(node.text), seen); }
     if (ts.isStringLiteralLike(node)) return tokenFont(node.text);
@@ -207,6 +306,10 @@ export function scanDesignFile(file, source) {
       classes(text, owner);
       if (/--pigment-/.test(text)) add('primitive-import', owner, text);
     }
+    if (ts.isPropertyAssignment(node)) {
+      const prop = node.name.getText(ast).replace(/^['"]|['"]$/g, '');
+      if (sinkName.test(prop)) checkSink(node.initializer);
+    }
     if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
       const left = node.left.getText(ast), prop = ts.isElementAccessExpression(node.left) ? node.left.argumentExpression.text : left.split('.').at(-1);
       if (/\.style(?:\.|\[)/.test(left) || sinkName.test(prop ?? '')) checkVisual(node.right, /^(?:font|fontFamily)$/.test(prop ?? ''), prop === 'cssText');
@@ -214,6 +317,8 @@ export function scanDesignFile(file, source) {
     if (outsideSystem && ts.isBinaryExpression(node) && [ts.SyntaxKind.LessThanToken, ts.SyntaxKind.LessThanEqualsToken, ts.SyntaxKind.GreaterThanToken, ts.SyntaxKind.GreaterThanEqualsToken].includes(node.operatorToken.kind) && [node.left, node.right].some(part => /^(?:(?:window|globalThis)\.)?inner(?:Width|Height)$/.test(part.getText(ast)))) add('raw-breakpoint-compare', context(node), node.getText(ast));
     if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
       const name = node.expression.name.text;
+      if (['getAttribute','setAttribute'].includes(name) && /^data-(?:theme|type|design|ground)$/.test(node.arguments[0]?.text ?? '') && outsideTheme) add('legacy-theme-read', context(node), node.getText(ast));
+      if (outsideTheme && ['querySelector','querySelectorAll','closest','matches'].includes(name)) literalValues(node.arguments[0] ?? node, text=>{if(/\[data-(?:theme|type|design|ground)(?:\s*[=\]])/.test(text))add('legacy-theme-read',context(node),text);});
       if (name === 'addColorStop' && node.arguments[1]) checkVisual(node.arguments[1]);
       if (['setAttribute', 'setProperty'].includes(name) && node.arguments[0] && node.arguments[1]) {
         const prop = node.arguments[0].text ?? '';
@@ -224,13 +329,30 @@ export function scanDesignFile(file, source) {
     if (outsideSystem && ts.isCallExpression(node) && /(?:^|\.)matchMedia$/.test(node.expression.getText(ast))) {
       literalValues(node.arguments[0] ?? node, text => { if (/(?:width|height)\s*[:<>=]/.test(text)) add('raw-media-query', context(node), text); });
     }
-    if (outsideSystem && ts.isPropertyAccessExpression(node) && /\.dataset\.(?:theme|design|ground)$/.test(node.getText(ast))) add('legacy-theme-read', context(node), node.getText(ast));
+    if (outsideTheme && (ts.isPropertyAccessExpression(node)||ts.isElementAccessExpression(node))) {
+      const member = ts.isPropertyAccessExpression(node)?node.name.text:node.argumentExpression?.text;
+      if (/\.dataset$/.test(node.expression.getText(ast)) && /^(theme|type|design|ground)$/.test(member??'')) add('legacy-theme-read', context(node),node.getText(ast));
+    }
+    if (outsideTheme && ts.isVariableDeclaration(node) && ts.isObjectBindingPattern(node.name) && /\.dataset$/.test(node.initializer?.getText(ast)??'')) {
+      for(const binding of node.name.elements) if(/^(theme|type|design|ground)$/.test((binding.propertyName??binding.name).getText(ast).replace(/^['"]|['"]$/g,''))) add('legacy-theme-read',context(node),node.getText(ast));
+    }
+    if (outsideTheme && ts.isBinaryExpression(node) && [ts.SyntaxKind.EqualsEqualsEqualsToken,ts.SyntaxKind.ExclamationEqualsEqualsToken,ts.SyntaxKind.EqualsEqualsToken,ts.SyntaxKind.ExclamationEqualsToken].includes(node.operatorToken.kind)) {
+      const themeId = (n,seen=new Set()) => {
+        if(ts.isIdentifier(n)) {
+          if(destructuredThemeIds.has(n.text))return true;
+          if(declarations.has(n.text)&&!seen.has(n.text))return themeId(declarations.get(n.text),new Set([...seen,n.text]));
+        }
+        if(ts.isPropertyAccessExpression(n))return n.name.text==='id'&&fromTheme(n.expression);
+        return ts.isElementAccessExpression(n)&&n.argumentExpression?.text==='id'&&fromTheme(n.expression);
+      };
+      if([node.left,node.right].some(n=>themeId(n)) && [node.left,node.right].some(ts.isStringLiteralLike))add('theme-id-branch',context(node),node.getText(ast));
+    }
     const importNode = ts.isImportDeclaration(node) || ts.isExportDeclaration(node);
     const dynamicImport = ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword;
     const specifier = importNode ? node.moduleSpecifier : dynamicImport ? node.arguments[0] : undefined;
     if (specifier && /\.css(?:\?|$)/.test(specifier.text ?? '') && file !== 'src/design-system/app.css') {
       // Root's ?url eager link is the sole TS boundary; side-effect CSS imports bypass layers.
-      if (!(file === 'src/routes/__root.tsx' && specifier.text === '../design-system/app.css?url')) add('unlayered-css-import', 'import', specifier.text);
+      if (!(file === 'src/routes/__root.tsx' && specifier.text === '../design-system/app.css?url') && !(file === 'src/routes/app.tsx' && specifier.text === '../design-system/workspace.css?url')) add('unlayered-css-import', 'import', specifier.text);
     }
     if (/^src\/design-system\/recipes(?:\/|\.ts)/.test(file) && (importNode || dynamicImport)) {
       const clause = ts.isImportDeclaration(node) ? node.importClause : undefined;

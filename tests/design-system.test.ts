@@ -5,8 +5,10 @@ import { themeRegistry, themeBootstrapScript } from '../src/design-system/theme/
 import { normalizeColor } from '../src/design-system/theme/color';
 import { withAlpha, towardPaper, towardInk } from '../src/theme';
 
+const tokenSchemes = (await import('node:fs')).readFileSync('src/design-system/tokens.css','utf8').match(/:root\[data-theme="[^"]+"\][^{]*\{[^}]+\}/g)?.join('\n') ?? '';
+
 function boot(query = '', stored: string | null = null, light = false, denied = false) {
-  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', { url: `http://localhost/${query}`, runScripts: 'outside-only' });
+  const dom = new JSDOM('<!doctype html><html><head><style>' + tokenSchemes + '</style></head><body></body></html>', { url: `http://localhost/${query}`, runScripts: 'outside-only' });
   if (stored) dom.window.localStorage.setItem('ai-capella-design', stored);
   Object.defineProperty(dom.window, 'matchMedia', { value: () => ({ matches: light }) });
   if (denied) Object.defineProperty(dom.window, 'localStorage', { get() { throw Error('storage denied'); } });
@@ -21,9 +23,9 @@ describe('one early appearance resolver', () => {
     dom.window.close();
   });
   it.each(themeRegistry)('preserves explicit $id over system appearance', theme => {
-    const dom=boot('',theme.storage,theme.colorScheme !== 'light');
+    const dom=boot('',theme.storage,theme.system !== 'light');
     expect(dom.window.document.documentElement.dataset.theme).toBe(theme.id);
-    expect(dom.window.document.documentElement.style.colorScheme).toBe(theme.colorScheme);
+    expect(dom.window.document.documentElement.style.colorScheme).toBe(dom.window.getComputedStyle(dom.window.document.documentElement).getPropertyValue('--ds-color-scheme').trim());
     dom.window.close();
     const reset=boot('?design=auto',theme.storage,false);
     expect(reset.window.document.documentElement.dataset.theme).toBe(themeRegistry.find(theme=>theme.system==='dark')?.id);
@@ -96,10 +98,11 @@ describe('theme source contracts M1/M2/M6/M7 and m1/m3/m4/m6/N2', () => {
     const adapters = css.nodes.filter(n => n.type === 'atrule' && n.name === 'theme' && n.params === 'inline');
     const mappings = new Map<string, string>();
     for (const adapter of adapters) if (adapter.type === 'atrule') adapter.walkDecls(d => { mappings.set(d.prop, d.value); });
-    css.walkDecls(d => {
-      const name = d.prop.replace(/^--ds-space-/, '--spacing-').replace(/^--ds-layer-/, '--z-index-').replace(/^--ds-size-/, '--text-').replace(/^--ds-shadow-/, '--shadow-');
-      if (name !== d.prop) expect(mappings.get(name)).toBe(`var(${d.prop})`);
-    });
+    const authored = new Set<string>(); css.walkDecls(d => { authored.add(d.prop); });
+    // Backing roles used by canvas/native CSS need no unused Tailwind alias. Every
+    // exported adapter reference must still name an authored semantic role.
+    for (const [name,value] of mappings) for (const match of value.matchAll(/var\((--ds-[\w-]+)/g))
+      expect(authored.has(match[1]), name+' references '+match[1]).toBe(true);
     for (const block of blocks) if (block.type === 'rule') block.walkDecls('--ds-material-fibre', d => {
       expect(d.value === 'none' || d.value.startsWith('var(--ds-material-fibre-live,')).toBe(true);
     });
@@ -125,8 +128,8 @@ describe('theme source contracts M1/M2/M6/M7 and m1/m3/m4/m6/N2', () => {
     const { compile } = await import('tailwindcss');
     const source = fs.readFileSync('src/design-system/tokens.css','utf8').replace('@theme static {','@theme static prefix(tw) {');
     const compiler = await compile(source+'\n@tailwind utilities;');
-    const css = compiler.build(['tw:p-2','tw:z-dialog','tw:max-panel:w-24']);
-    expect(css).toContain('padding: var(--ds-space-2)');
+    const css = compiler.build(['tw:p-micro','tw:z-dialog','tw:max-panel:w-section']);
+    expect(css).toContain('padding: var(--ds-space-micro)');
     expect(css).toContain('z-index: var(--ds-layer-dialog)');
     expect(css).toContain('@media (width < 900px)');
     expect(css).not.toContain('--breakpoint-panel-max');
@@ -159,7 +162,7 @@ describe('client theme lifecycle API', () => {
     for (const role of api.colorRoles) values['--ds-'+role]='#123456';
     for (const role of api.fontRoles) values['--ds-font-'+role]='Snapshot Font';
     for (let i=1;i<=8;i++) values['--ds-voice-'+i]='#123456';
-    Object.assign(values, {'--ds-print-paper':'#ffffff','--ds-print-ink':'#000000','--ds-print-font-text':'Print Font','--ds-print-font-music':'Music Font','--tw-breakpoint-panel':'56.25rem'});
+    Object.assign(values, {'--ds-material-strategy':'light','--ds-print-paper':'#ffffff','--ds-print-ink':'#000000','--ds-print-font-text':'Print Font','--ds-print-font-music':'Music Font','--tw-breakpoint-panel':'56.25rem'});
     // Deliberately not iterable: Safari's custom-property enumeration is not a contract.
     const computed = vi.fn(()=>({getPropertyValue:(key:string)=>values[key]??'',fontSize:'16px'}));
     vi.stubGlobal('getComputedStyle',computed);
@@ -215,4 +218,98 @@ describe('client theme lifecycle API', () => {
     expect(getThemeRevision()).toBe(0);
     expect(()=>subscribeTheme(()=>{}, {immediate:true})()).not.toThrow();
   });
+});
+
+it('derives the bootstrap scheme solely from the token block', () => {
+  for (const theme of themeRegistry) {
+    expect(theme).not.toHaveProperty('colorScheme');
+    const dom = boot('', theme.storage);
+    const root = dom.window.document.documentElement;
+    root.style.setProperty('--ds-color-scheme', 'only light');
+    dom.window.eval(themeBootstrapScript);
+    expect(root.style.colorScheme).toBe('only light');
+    dom.window.close();
+  }
+});
+it('leaves theme-color ownership to the idempotent bootstrap', async () => {
+  const { readFileSync } = await import('node:fs');
+  expect(readFileSync('src/routes/__root.tsx', 'utf8')).not.toMatch(/name:\s*['"]theme-color/);
+  const dom = boot();
+  dom.window.eval(themeBootstrapScript);
+  expect(dom.window.document.querySelectorAll('meta[name="theme-color"]')).toHaveLength(1);
+  dom.window.close();
+});
+it('restores inherited typography on reset elements and their pseudo-elements', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { default: postcss } = await import('postcss');
+  const css = postcss.parse(readFileSync('src/design-system/components.css', 'utf8'));
+  for (const selector of ['.ds-reset', '.ds-reset::before', '.ds-reset::after']) {
+    const values = new Map<string, string>();
+    css.walkRules(rule => { if (rule.selectors.includes(selector)) rule.walkDecls(d => { values.set(d.prop, d.value); }); });
+    for (const prop of ['text-align', 'letter-spacing', 'text-transform', 'white-space', 'text-indent', 'word-spacing', 'line-height', 'font-variant', 'direction'])
+      expect(values.get(prop), `${selector}: ${prop}`).toBe('inherit');
+  }
+});
+it('keeps the eager toast import graph limited to overlay recipes', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync('src/design-system/behavior/toast.ts', 'utf8');
+  expect(source).toContain('from "../recipes/overlays"');
+  expect(source).not.toMatch(/from ["']\.\.\/recipes["']/);
+});
+
+it('builds a loud fourth theme from every resolved paint alias', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { loudThemeBlock } = await import('./theme-extension-fixture.mjs');
+  const block = loudThemeBlock(readFileSync('src/design-system/tokens.css','utf8'));
+  if(block.type !== 'rule')throw Error('Expected a theme block');
+  const paint = new Map<string,string>(); block.walkDecls(d=>{paint.set(d.prop,d.value);});
+  expect(paint.get('--ds-accent')).not.toMatch(/var\(--pigment-/);
+  expect(paint.get('--ds-ink')).toMatch(/rgba\(/);
+  expect(paint.get('--ds-artwork-cover-ground')).toMatch(/rgba\(/);
+  expect(paint.get('--ds-voice-fallback-saturation')).toBe('92');
+  expect(paint.get('--ds-voice-fallback-lightness')).toBe('50');
+  expect(paint.size).toBeGreaterThan(200);
+});
+
+it('keeps ongoing guides and reusable scripts independent of phase evidence and archived revisions', async () => {
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const guides = [...readdirSync('docs/agents').map(n=>'docs/agents/'+n), ...readdirSync('docs/adr').map(n=>'docs/adr/'+n), 'GLOSSARY.md'];
+  for (const file of guides.filter(f=>f.endsWith('.md'))) {
+    const source=readFileSync(file,'utf8');
+    expect(source,file).not.toContain('/tmp/aicap-design/');
+    expect(source,file).not.toMatch(/\bP[1-9](?:[/.][0-9]|\b)(?!_)/);
+  }
+  for (const file of ['browser-design-system-runner','browser-p4c-parity','browser-p4c-tour-parity']) {
+    const source=readFileSync(`scripts/${file}.mjs`,'utf8');
+    expect(source,file).not.toMatch(/\/tmp\/aicap-design\/|tailf5ea68|\b[a-f0-9]{40}\b/);
+  }
+});
+it('runs acceptance and adapter parity with reusable keyboard, auth and admin checks in CI', async () => {
+  const { readFileSync } = await import('node:fs');
+  const workflow=readFileSync('.github/workflows/deploy.yml','utf8');
+  for(const command of ['test:browser:theme-extension','test:browser:design-system','test:browser:keyboard','test:browser:admin-parity','test:browser:auth-flows','check:design-utilities'])expect(workflow).toContain(`npm run ${command}`);
+});
+it('uses named toast, title intensity and print viewport roles at their consumers', async () => {
+  const { readFileSync } = await import('node:fs');
+  for(const [file,roles] of Object.entries({lightName:['light-name-letter-spacing','title-name-flare-core-alpha','title-name-flare-edge-alpha'],titleStage:['stage-beam-core-alpha','stage-grain-strand-alpha-min','stage-staff-dark-alpha'],exportPdf:['print-export-viewport-width']})){
+    const source=readFileSync(`src/${file}.ts`,'utf8');
+    for(const role of roles)expect(source,`${file}: ${role}`).toContain(`roles['${role}']`);
+  }
+  const main=readFileSync('src/main.ts','utf8');
+  for(const role of ['space-content','space-panel','space-action','space-tight'])
+    expect(main,role).toContain(`var(--ds-${role})`);
+  expect(main).not.toContain('calc(16px + (100% - 32px)');
+});
+
+it('keeps native unbounded size utilities independent of the zero-spacing scale', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { compile } = await import('tailwindcss');
+  const source=readFileSync('src/design-system/tokens.css','utf8').replace('@theme static {','@theme static prefix(tw) {');
+  const compiler=await compile(source+'\n@tailwind utilities;');
+  const generated=compiler.build(['tw:max-w-none','tw:max-h-none']);
+  const css=generated.slice(generated.indexOf('.tw\\:max-h-none'));
+  for(const prop of ['max-width','max-height']) {
+    expect(css).toContain(`${prop}: none`);
+    expect(css,`${prop} must not collapse to the zero-spacing token`).not.toMatch(new RegExp(`${prop}:\\s*var\\(--ds-space-`));
+  }
 });

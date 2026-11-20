@@ -485,7 +485,7 @@ export function createDialog(options: DialogOptions) {
   dialog.dataset.ds = "dialog";
   const titleId = `ds-dialog-${++fieldId}-title`,
     bodyId = titleId + "-body";
-  if (!dialog.hasAttribute("aria-labelledby"))
+  if (options.title && !dialog.hasAttribute("aria-label") && !dialog.hasAttribute("aria-labelledby"))
     dialog.setAttribute("aria-labelledby", titleId);
   dialog.setAttribute(
     "role",
@@ -499,11 +499,13 @@ export function createDialog(options: DialogOptions) {
   if (options.body && !dialog.hasAttribute("aria-describedby"))
     dialog.setAttribute("aria-describedby", bodyId);
   const content = element("div", slots.content);
-  const head = element("header", slots.header);
-  const heading = element("h2", slots.title, options.title);
-  heading.id = titleId;
-  head.append(heading);
-  content.append(head);
+  if (options.title) {
+    const head = element("header", slots.header);
+    const heading = element("h2", slots.title, options.title);
+    heading.id = titleId;
+    head.append(heading);
+    content.append(head);
+  }
   if (options.body) {
     const body = element("p", slots.body, options.body);
     body.id = bodyId;
@@ -603,7 +605,7 @@ export function createMenu(options: MenuOptions) {
       if (item.icon) button.append(item.icon);
       button.append(document.createTextNode(item.label));
       if (nested && options.variant === "library")
-        button.classList.add(...r.libraryUtilityRecipe("ds-library-menu-option").split(" "));
+        button.classList.add(...r.libraryMenuRecipe().option.split(" "));
       if (item.checked) {
         const check = element("span", slots.check, "✓");
         check.setAttribute("aria-hidden", "true");
@@ -613,17 +615,17 @@ export function createMenu(options: MenuOptions) {
       if (item.options) {
         const value = element(
           "span",
-          r.libraryUtilityRecipe("ds-library-menu-value"),
+          r.libraryMenuRecipe().value,
           item.value ?? "",
         );
         button.append(value);
         const chevron = item.disclosureIcon ?? element("span", "", "⌄");
         if (chevron instanceof Element) {
-          chevron.classList.add(...r.libraryUtilityRecipe("ds-library-menu-chevron").split(" "));
+          chevron.classList.add(...r.libraryMenuRecipe().chevron.split(" "));
           chevron.setAttribute("aria-hidden", "true");
         }
         button.append(chevron);
-        const sub = element("div", r.libraryUtilityRecipe("ds-library-menu-sub"));
+        const sub = element("div", r.libraryMenuRecipe().sub);
         sub.hidden = true;
         sub.setAttribute("role", "group");
         sub.setAttribute("aria-label", item.label);

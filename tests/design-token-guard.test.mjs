@@ -80,14 +80,14 @@ describe('review guard regressions M3–M6 / N1', () => {
   it('M5 covers CSS media and imports, allowing layered imports and system preferences', () => {
     expect(scanDesignFile('src/new.css', '@media (max-width: 800px){x{display:none}} @import "x.css";').map(row => row.kind)).toEqual(['raw-media-query','unlayered-css-import']);
     expect(scanDesignFile('src/new.css', '@import "x.css" layer(components);')).toEqual([]);
-    expect(scanDesignFile('src/design-system/tokens.css', '@import "x.css"; :root{--ds-ink:#123456}').map(row=>row.kind)).toEqual(['unlayered-css-import']);
+    expect(scanDesignFile('src/design-system/tokens.css', '@import "x.css"; :root[data-theme=night]{--ds-ink:#123456}').map(row=>row.kind)).toEqual(['unlayered-css-import']);
     expect(scan("matchMedia('(prefers-color-scheme:light)'); matchBreakpoint('panel','below');")).toEqual([]);
   });
   it.each(['p-[13px]', 'z-[9999]', 'w-[420px]', 'gap-[7px]', 'max-w-[90vw]', 'inset-x-[3rem]', 'basis-[50%]', 'm-(--legacy-space)', 'w-[var(--legacy-width)]'])('M6 rejects arbitrary layout %s', value => {
     expect(scan(`const cls='tw:hover:${value}';`).some(row => row.kind === 'arbitrary-aesthetic')).toBe(true);
   });
   it('M6 permits semantic arbitrary variables and semantic scales', () => {
-    expect(scan("const cls='tw:p-(--ds-space-12) tw:z-[var(--ds-layer-menu)] tw:max-panel:w-24 tw:p-2';")).toEqual([]);
+    expect(scan("const cls='tw:p-(--ds-space-control) tw:z-[var(--ds-layer-menu)] tw:max-panel:w-control tw:p-control';")).toEqual([]);
   });
   it('cannot revive the retired baseline mechanism through upgraded rules', () => {
     const row = {file:'src/old.ts',kind:'raw-color',context:'old',value:'#123456',count:1};
@@ -107,4 +107,134 @@ describe('review guard regressions M3–M6 / N1', () => {
     expect(scanDesignFile('src/paper.ts', 'const color=[12,12,.4]; ctx.fillStyle=color;').some(r=>r.kind==='raw-channels-at-sink')).toBe(true);
     expect(scanDesignFile('src/design-system/example.css', ':root[data-design="papier"] x {display:none}').some(r=>r.kind==='legacy-theme-selector')).toBe(true);
   });
+});
+
+describe('final review guard evasions', () => {
+  it.each(['theme', 'type', 'design', 'ground'])('rejects %s selectors and attribute reads', name => {
+    expect(scanDesignFile('src/design-system/native.css', `[data-${name}=parchment] {display:none}`).some(r=>r.kind==='legacy-theme-selector')).toBe(true);
+    expect(scan(`root.getAttribute('data-${name}')`).some(r=>r.kind==='legacy-theme-read')).toBe(true);
+    expect(scan(`const x='tw:[[data-${name}=parchment]_&]:block'`).some(r=>r.kind==='legacy-theme-selector')).toBe(true);
+  });
+  it('requires layer() on every app import', () => {
+    expect(scanDesignFile('src/design-system/app.css', '@import "x.css";').some(r=>r.kind==='unlayered-css-import')).toBe(true);
+    expect(scanDesignFile('src/design-system/app.css', '@import "x.css" layer(components);')).toEqual([]);
+  });
+  it.each(['translate-x-[13px]', 'grid-cols-[13px_1fr]', 'animate-[spin_1s]', 'rotate-[15deg]', 'content-[hello]'])('checks arbitrary utility %s', cls => {
+    expect(scan(`const x='tw:hover:${cls}'`).some(r=>r.kind==='arbitrary-aesthetic')).toBe(true);
+  });
+  it.each(['duration-300','z-50','border-2','rounded-full','opacity-37'])('rejects unmapped scales %s', cls => {
+    expect(scan(`const x='tw:${cls}'`).some(r=>r.kind==='unmapped-scale-utility')).toBe(true);
+  });
+  it.each(['@media (max-width:700px){x{display:none}}', '@custom-variant phone (@media (max-width:700px));'])('checks at-rule breakpoint parameters %s', css => {
+    expect(scanDesignFile('src/design-system/native.css', css).some(r=>r.kind==='raw-media-query')).toBe(true);
+  });
+  it.each(['ctx.fillStyle=`rgb(${r},${g},${b})`', 'const tint=`rgb(${r},${g},${b})`; el.style.background=tint', 'ctx.addColorStop(0, `rgba(${r},${g},${b},${alpha})`)'])('rejects computed color sinks %s', source => {
+    expect(scan(source).some(r=>r.kind==='computed-color-at-sink')).toBe(true);
+  });
+  it('rejects rule-index and value-encoding names without rejecting semantic spacing scales', async () => {
+    const {checkSemanticName} = await import('../scripts/check-design-tokens.mjs');
+    for (const name of ['--ds-panel-bpm-radius-39','shell-0031-0','player-native-height-4px']) expect(checkSemanticName(name),name).toBe(true);
+    for (const name of ['--ds-space-control','--spacing-content','--ds-radius-card','tw:p-control']) expect(checkSemanticName(name),name).toBe(false);
+  });
+});
+
+it('rejects shared screen pigments while retaining explicit print exceptions', () => {
+  const css=':root{--ds-cover-background:#15131f;--ds-ink:var(--pigment-ink);--ds-print-paper:#fff;--ds-print-ink:#000} :root[data-theme="new"]{--ds-cover-background:#25231f}';
+  expect(scanDesignFile('src/design-system/tokens.css',css).filter(r=>r.kind==='shared-screen-color').map(r=>r.context)).toEqual(['--ds-cover-background','--ds-ink']);
+});
+it.each([
+  ['src/design-system/tokens.css', ':root{--ds-panel-bpm-radius-39:var(--ds-radius-card)}'],
+  ['src/design-system/app.css', '@utility shell-0031-0{display:block} @custom-variant player-0032-0 (&:hover);'],
+  ['src/new.ts', 'const x="tw:player-native-height-4px";'],
+])('enforces semantic names when enabled: %s', (file,source) => {
+  expect(scanDesignFile(file,source,{semanticNames:true}).some(r=>r.kind==='value-encoding-name')).toBe(true);
+});
+
+it.each(['tw:[transform:var(--ds-panel-specimen-transform)]', 'tw:focus-visible:[outline-color:var(--ds-admin-accent)]', 'tw:border-(length:--ds-stroke-thin)', 'tw:w-[length:var(--ds-control-height)]'])('accepts semantic arbitrary property and typed token utility %s', cls => {
+  expect(scan(`const x='${cls}'`)).toEqual([]);
+});
+
+it.each(['scale-110','rotate-45','brightness-125','underline-offset-2'])('rejects other unmapped numeric design scales %s', cls => {
+  expect(scan(`const x='tw:${cls}'`).some(r=>r.kind==='unmapped-scale-utility')).toBe(true);
+});
+it('checks reversed raw media ranges and aliased computed colors', () => {
+  expect(scanDesignFile('src/design-system/native.css','@media (700px >= width){x{display:none}}').some(r=>r.kind==='raw-media-query')).toBe(true);
+  expect(scan('const a=`rgb(${r},${g},${b})`;const b=a;ctx.fillStyle=b').some(r=>r.kind==='computed-color-at-sink')).toBe(true);
+});
+
+it.each(['tw:[line-height:inherit]','tw:[background:var(--c)]','tw:[transform:perspective(var(--ds-perspective))_rotateX(calc(var(--ry,_var(--ds-rest))_*_var(--ds-tilt)))]'])('permits token expressions and named structural inputs %s', cls => {
+  expect(scan(`const x='${cls}'`)).toEqual([]);
+});
+it.each(['tw:[transform:translateX(13px)_var(--ds-transform)]','tw:[background:linear-gradient(red,_var(--ds-ground))]','tw:[color:var(--legacy-color)]'])('still rejects aesthetic fragments around semantic variables %s', cls => {
+  expect(scan(`const x='${cls}'`).some(r=>r.kind==='arbitrary-aesthetic'||r.kind==='named-color')).toBe(true);
+});
+
+it('permits named element-local writing inputs inside token-backed material expressions', () => {
+  expect(scan("const x='tw:[mask-image:linear-gradient(var(--ds-writing-angle),_var(--ds-writing-ink)_calc(var(--written)_-_var(--ds-writing-feather)),_transparent_var(--written))]'")).toEqual([]);
+});
+
+it.each(['const x=<div style={{color:`rgb(${r},${g},${b})`}}/>;', 'Object.assign(el.style,{background:`rgb(${r},${g},${b})`});'])('checks computed object-style sinks %s', source => {
+  expect(scan(source).some(r=>r.kind==='computed-color-at-sink')).toBe(true);
+});
+it('requires a named import layer and checks raw Tailwind media variants', () => {
+  expect(scanDesignFile('src/design-system/app.css','@import "x.css" layer;').some(r=>r.kind==='unlayered-css-import')).toBe(true);
+  expect(scan("const x='tw:[@media_(max-width:_700px)]:hidden'").some(r=>r.kind==='raw-media-query')).toBe(true);
+  expect(scanDesignFile('src/design-system/tokens.css','[data-design=papier]{display:block}').some(r=>r.kind==='legacy-theme-selector')).toBe(true);
+});
+
+describe('P6d token and theme boundary regressions', () => {
+  it.each([
+    ['raw-media-query', 'const x="tw:max-[700px]:hidden"'],
+    ['raw-media-query', 'const x="tw:min-[40rem]:block"'],
+    ['theme-variant', 'const x="tw:dark:bg-surface"'],
+    ['legacy-theme-read', 'root.dataset["theme"]'],
+    ['legacy-theme-read', 'const {theme: selected} = root.dataset'],
+    ['legacy-theme-read', 'root.querySelector("[data-theme=parchment]")'],
+    ['legacy-theme-read', 'root.setAttribute("data-theme", "parchment")'],
+    ['theme-id-branch', 'if (readTheme().id === "parchment") draw()'],
+    ['computed-color-at-sink', 'ctx.fillStyle = "rgb(" + r + "," + g + "," + b + ")"'],
+    ['numeric-color-at-sink', 'ctx.fillStyle = 0xff00ee'],
+    ['value-encoding-name', 'const x="tw:panel-paint-3"'],
+  ])('rejects %s: %s', (kind, source) => {
+    expect(scan(source).some(row=>row.kind===kind)).toBe(true);
+  });
+  it.each([
+    '@container score (min-width:700px){x{display:none}}',
+    '@media (width > 40vw){x{display:none}}',
+  ])('rejects raw container/media lengths: %s', source => {
+    expect(scanDesignFile('src/design-system/native.css',source).some(row=>row.kind==='raw-media-query')).toBe(true);
+  });
+  it.each([
+    '--ds-shadow:0 0 2px red',
+    '--ds-gradient:linear-gradient(red, blue)',
+    '--ds-mix:color-mix(in srgb, red, blue)',
+  ])('requires theme ownership of shared named paints: %s', decl => {
+    expect(scanDesignFile('src/design-system/tokens.css',`:root{${decl}}`).some(row=>row.kind==='shared-screen-color')).toBe(true);
+  });
+  it.each(['fill="red"','stroke="blue"','fill="#123456"','style="fill:red;stroke:blue"'])('checks SVG asset colors: %s', attr => {
+    expect(scanDesignFile('src/design-system/assets/example.svg',`<svg><path ${attr}/></svg>`).some(row=>['raw-color','named-color'].includes(row.kind))).toBe(true);
+  });
+  it('allows inherited SVG paint and theme runtime ownership', () => {
+    expect(scanDesignFile('src/design-system/assets/example.svg','<svg><path fill="currentColor" stroke="none"/></svg>')).toEqual([]);
+    expect(scanDesignFile('src/design-system/theme/example.ts','root.dataset["theme"]; const {theme}=root.dataset; root.setAttribute("data-theme","example"); readTheme().id === "example";')).toEqual([]);
+  });
+  it('preserves token-composed lengths and data-family indices',()=>{
+    expect(scanDesignFile('src/design-system/tokens.css',':root{--ds-space-control:12px;--ds-widget-gap:var(--ds-space-control)}')).toEqual([]);
+    expect(scan('const c="tw:-translate-x-1/2 tw:[&_*]:border-0 tw:grid-cols-2"')).toEqual([]);
+  });
+});
+
+it.each([
+ 'const theme=readTheme(); if(theme.id === "parchment") draw()',
+ 'const {id:selected}=readTheme(); if(selected === "parchment") draw()',
+ 'const id=readTheme().id; if("parchment" === id) draw()',
+])('rejects local theme-ID comparison aliases: %s',source=>{
+ expect(scan(source).some(row=>row.kind==='theme-id-branch')).toBe(true);
+});
+it('allows only an exact documented brand SVG digest',async()=>{
+ const {createHash}=await import('node:crypto');
+ const file='public/brand/example.svg',source='<svg><path fill="red"/></svg>';
+ const brandArtworkHashes={[file]:createHash('sha256').update(source).digest('hex')};
+ expect(scanDesignFile(file,source,{brandArtworkHashes})).toEqual([]);
+ expect(scanDesignFile(file,source.replace('red','blue'),{brandArtworkHashes})).not.toEqual([]);
 });

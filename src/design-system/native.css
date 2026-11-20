@@ -1,66 +1,66 @@
-/* Global native inheritance/reset or generated ground has no owning element recipe. */
+/* Border-box must also cover parser-created SVG/HTML and generated content outside the component adapters. */
 *,
 *::before,
 *::after {
     box-sizing: border-box
 }
-/* Global native inheritance/reset or generated ground has no owning element recipe. */
+/* The document ground and inherited text must exist before hydration and canvas startup. */
 html,
 body {
     margin: 0;
     height: 100%;
     background: var(--ds-page-background);
-    color: var(--ds-shell-html-body-color-24);
-    font: var(--ds-shell-html-body-font-25);
+    color: var(--ds-ink);
+    font: var(--ds-html-body-font);
     -webkit-font-smoothing: antialiased;
     -webkit-tap-highlight-color: transparent;
     overscroll-behavior: none
 }
-/* Global native inheritance/reset or generated ground has no owning element recipe. */
+/* Native hidden must beat every layout utility, including DOM created by external score tooling. */
 [hidden] {
     display: none !important
 }
-/* Global native inheritance/reset or generated ground has no owning element recipe. */
+/* Unwrapped native controls inherit document typography before a component recipe is attached. */
 button,
 input {
     font: inherit;
     color: inherit
 }
-/* Global native inheritance/reset or generated ground has no owning element recipe. */
+/* Bare native buttons retain the historical reset used by generated score and renderer controls. */
 button {
     cursor: pointer;
     background: none;
     border: 0;
     padding: 0
 }
-/* Global native inheritance/reset or generated ground has no owning element recipe. */
+/* The native disabled fallback applies to controls constructed outside the shared adapters. */
 button:disabled {
     cursor: default;
-    opacity: var(--ds-shell-button-disabled-opacity-26)
+    opacity: var(--ds-button-disabled-opacity)
 }
-/* Global native inheritance/reset or generated ground has no owning element recipe. */
+/* The document focus fallback covers anchors, disclosures and generated focusable score content. */
 :focus-visible {
-    outline: var(--ds-shell-focus-visible-outline-27);
-    outline-offset: var(--ds-shell-focus-visible-outline-offset-28)
+    outline: var(--ds-focus-visible-outline);
+    outline-offset: var(--ds-space-micro)
 }
-/* Global native inheritance/reset or generated ground has no owning element recipe. */
+/* Library and notation SVG icons share this stable geometry hook before their parent layout is measured. */
 .ic {
-    width: var(--ds-shell-ic-width-29);
-    height: var(--ds-shell-ic-height-30);
+    width: var(--ds-space-group);
+    height: var(--ds-space-group);
     flex: none;
     display: block
 }
 @media (prefers-reduced-motion: reduce) {
-    /* Global native inheritance/reset or generated ground has no owning element recipe. */
+    /* The OS motion preference must also stop generated content and native nodes without recipes. */
     *,
   *::before,
   *::after {
-        animation-duration: var(--ds-shell-before-after-animation-duration-97) !important;
-        animation-iteration-count: var(--ds-shell-before-after-animation-iteration-count-98) !important;
-        transition-duration: var(--ds-shell-before-after-transition-duration-99) !important
+        animation-duration: var(--ds-before-after-animation-duration) !important;
+        animation-iteration-count: var(--ds-before-after-animation-iteration-count) !important;
+        transition-duration: var(--ds-before-after-transition-duration) !important
     }
 }
-/* Global native inheritance/reset or generated ground has no owning element recipe. */
+/* The backdrop canvas is installed before the app; its visibility comes from the material roles. */
 #bg-waves {
     position: fixed;
     inset: 0;
@@ -68,31 +68,31 @@ button:disabled {
     height: 100%;
     z-index: 0;
     pointer-events: none;
-    display: var(--ds-shell-waves-display)
+    display: var(--ds-waves-display)
 }
-/* Global native inheritance/reset or generated ground has no owning element recipe. */
+/* The paper texture is a document pseudo-element, so there is no recipe-owned node for its paint. */
 body::after {
-    content: var(--ds-shell-body-after-content-108);
+    content: var(--ds-body-after-content);
     position: fixed;
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    background: var(--ds-shell-ground-texture)
+    background: var(--ds-ground-texture)
 }
-/* Global native inheritance/reset or generated ground has no owning element recipe. */
+/* The landing title can suppress the document texture without replacing its generated layer. */
 body:has(#app.mode-landing)::after {
-    display: var(--ds-shell-landing-texture-display)
+    display: var(--ds-landing-texture-display)
 }
-/* Global native inheritance/reset or generated ground has no owning element recipe. */
+/* The stage-title presentation needs one continuous ground across body and landing during its canvas reveal. */
 :root[data-title='buehne'] body:has(#app.mode-landing),
 :root[data-title='buehne'] #landing {
-    background: var(--ds-shell-body-has-app-mode-landing-landing-background-144)
+    background: var(--ds-landing-ground)
 }
-/* Native browser subpart cannot receive element utility classes. */
+/* The ensemble disclosure owns a custom ellipsis; WebKit’s native marker must be hidden separately. */
 .row-menu summary::-webkit-details-marker {
     display: none
 }
-/* Native browser subpart cannot receive element utility classes. */
+/* The transcription job disclosure likewise supplies its own ellipsis in place of WebKit’s marker. */
 .tx-job summary::-webkit-details-marker {
     display: none
 }

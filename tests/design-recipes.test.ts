@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import * as r from "../src/design-system/recipes";
+import { controlNoteRecipe } from "../src/design-system/recipes/shell";
 import { scanDesignFile } from "../scripts/check-design-tokens.mjs";
 describe("pure recipes", () => {
   it("preserves close typography and native domain select treatment", () => {
@@ -11,9 +12,9 @@ describe("pure recipes", () => {
     expect(r.iconButtonRecipe({ variant: "admin-close" })).toContain(
       "tw:text-admin-close",
     );
-    expect(r.selectRecipe({ variant: "domain" })).toContain("tw:px-8");
-    expect(r.inputRecipe({ variant: "domain" })).toContain("tw:px-0");
-    expect(r.cardRecipe({ variant: "tour" })).toContain("tw:pt-14");
+    expect(r.selectRecipe({ variant: "domain" })).toContain("tw:px-small");
+    expect(r.inputRecipe({ variant: "domain" })).toContain("tw:px-flush");
+    expect(r.cardRecipe({ variant: "tour" })).toContain("tw:pt-row");
   });
   it("gives the notifier and specimens one recipe plus a named placement", () => {
     expect(r.toastRecipe()).toContain("ds-reset");
@@ -51,8 +52,8 @@ describe("pure recipes", () => {
         const classes = r.buttonRecipe({ variant, intent }).split(/\s+/);
         if (variant.startsWith("panel-") || variant.startsWith("section-")) {
           expect(classes).toContain("ds-panel-button");
-          expect(classes).toContain("tw:panel-inherit");
-          expect(classes).toContain("tw:focus-visible:outline-ink");
+          expect(classes).toContain("tw:font-family-inherit");
+          expect(classes).toContain("tw:focus-visible:[outline-color:var(--ds-ink)]");
           expect(classes.some(c => c.startsWith("tw:"))).toBe(true);
           expect(new Set(classes).size).toBe(classes.length);
           continue;
@@ -85,7 +86,7 @@ describe("pure recipes", () => {
       "tw:rounded-card",
     );
     expect(r.buttonRecipe({ variant: "dense" })).toContain(
-      "tw:rounded-admin-control",
+      "tw:rounded-control-dense",
     );
   });
   it("defines player appearances in token-backed utilities and reserves CSS for native parts", () => {
@@ -103,14 +104,17 @@ describe("pure recipes", () => {
       .map(match => match[1].trim()).filter(selector => !selector.startsWith("@"));
     expect(selectors.length).toBeGreaterThan(0);
     for (const selector of selectors) expect(selector).toContain("::");
-    expect(r.playerGlyphRecipe("treble")).toContain("tw:font-font-music");
+    expect(r.playerGlyphRecipe("treble")).toContain("tw:font-music");
   });
   it("defines library/account appearance in utilities and keeps only generated decorations in CSS", () => {
     for (const part of r.libraryParts) expect(r.libraryPartRecipe(part)).toMatch(/(?:^|\s)tw:/);
     for (const part of r.accountParts) expect(r.accountPartRecipe(part)).toMatch(/(?:^|\s)tw:/);
     for (const variant of ["library-prompt", "library-sheet", "library-popover"] as const)
       for (const slot of Object.values(r.dialogRecipe({ variant }))) expect(slot).toMatch(/(?:^|\s)tw:/);
-    for (const slot of Object.values(r.menuRecipe({ variant: "library" }))) expect(slot).toMatch(/(?:^|\s)tw:/);
+    for (const [part, slot] of Object.entries(r.menuRecipe({ variant: "library" }))) {
+      if (part === "chevron") expect(slot).toContain("ds-library-menu-chevron"); // Generated decoration is styled by its owning item.
+      else expect(slot).toMatch(/(?:^|\s)tw:/);
+    }
     for (const file of ["library", "account"]) {
       const css = readFileSync(`src/design-system/${file}.css`, "utf8");
       expect(css).not.toMatch(/(?<![\w-])\d+(?:px|ms)\b|#[a-f\d]{3,8}\b/i);
@@ -240,4 +244,46 @@ describe("every recipe property is exclusive within a state and breakpoint", () 
       ]),
     );
   });
+});
+
+it('preserves unselectable landing notes and the library Menu ink focus outline', () => {
+  expect(controlNoteRecipe()).toContain('tw:select-none');
+  expect(controlNoteRecipe()).not.toContain('tw:select-text');
+  expect(r.panelPartRecipe('ctl-note')).toContain('tw:select-none');
+  expect(r.panelPartRecipe('ctl-note')).not.toContain('tw:select-text');
+  const menu=r.iconButtonRecipe({variant:'library-menu'});
+  expect(menu).toContain('tw:focus-visible:outline-ink');
+  expect(menu).not.toContain('tw:focus-visible:outline-focus');
+});
+
+it('emits every authored utility through the real app compiler, excluding only structural peer', async () => {
+  const {auditDesignUtilities,compileDesignUtilities}=await import('../scripts/check-design-utilities.mjs');
+  const result=await auditDesignUtilities();
+  expect(result.candidates).toBeGreaterThan(1000);
+  expect(result.missing).toEqual([]);
+  expect(result.ignoredMarkers.every(marker=>marker==='tw:peer')).toBe(true);
+  // Negative controls reproduce a missing semantic offset and an unknown stacking alias.
+  expect(await compileDesignUtilities(['tw:focus-visible:outline-offset-compact','tw:z-definitely-absent'])).toEqual([null,null]);
+},15000);
+
+it('emits the standard, admin and player focus offsets from their authored spacing roles', async () => {
+  const {compileDesignUtilities}=await import('../scripts/check-design-utilities.mjs');
+  const {default:postcss}=await import('postcss');
+  const cases: [r.ButtonOptions['variant'],string][]=[['standard','compact'],['dense','tight'],['player-play','micro']];
+  for(const [variant,scale] of cases) {
+    const candidates=r.buttonRecipe({variant}).split(/\s+/).filter(candidate=>candidate.includes('outline-offset'));
+    expect(candidates.length,variant).toBeGreaterThan(0);
+    const emitted=await compileDesignUtilities(candidates);
+    const values: string[]=[];
+    for(const css of emitted){expect(css,variant).not.toBeNull();if(css)postcss.parse(css).walkDecls('outline-offset',d=>{values.push(d.value);});}
+    expect(values,variant).toContain(`var(--ds-space-${scale})`);
+  }
+},15000);
+
+it('keeps player domain compositions equivalent to their shared app controls',()=>{
+  expect(r.transportRecipe().play).toBe(r.buttonRecipe({variant:'player-play'}));
+  expect(r.transportRecipe().command).toBe(r.buttonRecipe({variant:'player-transport'}));
+  expect(r.voiceRowRecipe().name).toBe(r.buttonRecipe({variant:'player-voice-name'}));
+  expect(r.voiceRowRecipe().more).toBe(r.iconButtonRecipe({variant:'voice-more'}));
+  expect(r.voiceChipRecipe()).toBe(r.buttonRecipe({variant:'player-chip'}));
 });

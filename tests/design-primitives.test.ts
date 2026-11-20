@@ -12,6 +12,10 @@ import {
   dismissToast,
   subscribeToast,
 } from "../src/design-system/behavior";
+const toastRoles = vi.hoisted(() => ({ 'toast-duration-info': '3200ms', 'toast-duration-error': '6500ms', 'toast-duration-exit': '300ms' }));
+vi.mock('../src/design-system/theme', async importOriginal => ({
+  ...await importOriginal(), readTheme: () => ({ roles: toastRoles }),
+}));
 afterEach(() => {
   D.closeOverlay();
   dismissToast();
@@ -439,7 +443,7 @@ describe("P3 review regression contracts", () => {
       layout: "tw:ml-auto",
     });
     D.updateButton(button, { busy: true });
-    expect(button.className).toContain("tw:rounded-chip");
+    expect(button.className).toContain("tw:rounded-pill");
     expect(button.className).toContain("tw:ml-auto");
     const icon = D.createIconButton({
       label: "Close",
@@ -447,7 +451,7 @@ describe("P3 review regression contracts", () => {
       layout: "tw:self-end",
     });
     D.updateButton(icon, { busy: true });
-    expect(icon.className).toContain("tw:size-32");
+    expect(icon.className).toContain("tw:size-panel");
     expect(icon.className).toContain("tw:self-end");
     expect(icon.dataset.ds).toBe("icon-button");
   });
@@ -699,4 +703,93 @@ describe("shared sheet motion", () => {
       vi.unstubAllGlobals();
     }
   });
+});
+
+describe('final review adapter and keyboard regressions', () => {
+  it('compares normalized React and DOM specimen markup, including roles, aria, data and classes', async () => {
+    const { specimens } = await import('../src/design-system/catalog');
+    function normalized(root: ParentNode) {
+      const elements = [...root.querySelectorAll('*')];
+      const ids = new Map(elements.filter(el => el.id).map(el => [el.id, `part-${elements.indexOf(el)}`]));
+      return elements.map(el => ({
+        tag: el.tagName,
+        attrs: Object.fromEntries([...el.attributes]
+          .filter(a => (a.name === 'class' && a.value.trim()) || a.name === 'role' || a.name === 'id' || a.name === 'for' || /^(aria-|data-)/.test(a.name))
+          .map(a => [a.name, a.name === 'class' ? a.value.split(/\s+/).filter(Boolean).sort().join(' ') : a.value.split(' ').map(value => ids.get(value) ?? value).join(' ')])
+          .sort(([a], [b]) => a.localeCompare(b))),
+      }));
+    }
+    for (const specimen of specimens()) {
+      const react = document.createElement('template');
+      react.innerHTML = renderToString(specimen.react);
+      const dom = document.createDocumentFragment();
+      dom.append(specimen.dom());
+      expect(normalized(dom), specimen.name).toEqual(normalized(react.content));
+    }
+  });
+  it('wraps Tab in both directions, traps an empty dialog and closes on Escape with focus return', () => {
+    vi.spyOn(HTMLElement.prototype, 'getClientRects').mockImplementation(function () {
+      return [new DOMRect(0, 0, 10, 10)] as unknown as DOMRectList;
+    });
+    const cancelled = vi.fn();
+    const { dialog, opener, api } = modal({ onCancel: cancelled });
+    const [first, last] = [...dialog.querySelectorAll('button')];
+    const key = (key: string, shiftKey = false) => {
+      const event = new KeyboardEvent('keydown', { key, shiftKey, bubbles: true, cancelable: true });
+      dialog.dispatchEvent(event);
+      return event;
+    };
+    last.focus();
+    expect(key('Tab').defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
+    expect(key('Tab', true).defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(last);
+    dialog.replaceChildren();
+    expect(key('Tab').defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(dialog);
+    expect(key('Escape').defaultPrevented).toBe(true);
+    expect(dialog.open).toBe(false);
+    expect(cancelled).toHaveBeenCalledWith('escape');
+    expect(document.activeElement).toBe(opener);
+    api.dispose();
+  });
+  it('omits untitled headings/associations and preserves explicit popover names in both adapters', () => {
+    const dom = D.createDialog({ title: '', attrs: { 'aria-label': 'Tempo' } }).element;
+    const react = document.createElement('div');
+    react.innerHTML = renderToString(createElement(R.Dialog, { open: true, specimen: true, title: '', 'aria-label': 'Tempo' }));
+    for (const dialog of [dom, react.querySelector('dialog')!]) {
+      expect(dialog.querySelector('h2,header')).toBeNull();
+      expect(dialog.hasAttribute('aria-labelledby')).toBe(false);
+      expect(dialog.getAttribute('aria-label')).toBe('Tempo');
+    }
+  });
+});
+
+it('uses token durations for toast lifetime and exit rather than numeric defaults', () => {
+  vi.useFakeTimers();
+  const original = { ...toastRoles };
+  Object.assign(toastRoles, { 'toast-duration-info': '0.017s', 'toast-duration-error': '23ms', 'toast-duration-exit': '0.011s' });
+  try {
+    toast('Short info');
+    vi.advanceTimersByTime(16); expect(getToast()?.text).toBe('Short info');
+    vi.advanceTimersByTime(1); expect(getToast()).toBeNull();
+    expect(document.getElementById('toast')?.textContent).toBe('Short info');
+    vi.advanceTimersByTime(11); expect(document.getElementById('toast')?.textContent).toBe('');
+    toast('Short error', 'error');
+    vi.advanceTimersByTime(22); expect(getToast()?.text).toBe('Short error');
+    vi.advanceTimersByTime(1); expect(getToast()).toBeNull();
+  } finally { Object.assign(toastRoles, original); }
+});
+
+it('finishes a sheet through its duration fallback when transitionend is absent', () => {
+  vi.useFakeTimers();
+  const {dialog,api,opener}=modal({motion:'sheet'});
+  vi.advanceTimersByTime(20);
+  dialog.style.transitionDuration='0.22s';
+  api.close();
+  vi.advanceTimersByTime(269);
+  expect(dialog.open).toBe(true);
+  vi.advanceTimersByTime(1);
+  expect(dialog.open).toBe(false);
+  expect(document.activeElement).toBe(opener);
 });

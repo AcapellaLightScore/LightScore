@@ -2,12 +2,17 @@ import {
   toastRecipe,
   toastPlacementRecipe,
   type ToastOptions,
-} from "../recipes";
-import { toastPart } from "../parts";
+} from "../recipes/overlays";
+import { readTheme } from "../theme";
+import { toastPart } from "../parts-common";
 export interface ToastMessage {
   text: string;
   kind: NonNullable<ToastOptions["kind"]>;
   id: number;
+}
+function duration(role: string) {
+  const value = readTheme().roles[role];
+  return parseFloat(value) * (value.endsWith("ms") ? 1 : 1000);
 }
 let message: ToastMessage | null = null;
 let sequence = 0;
@@ -35,7 +40,7 @@ export function dismissToast() {
     fadeTimer = setTimeout(() => {
       host.hidePopover?.();
       host.textContent = "";
-    }, 300);
+    }, duration("toast-duration-exit"));
   }
   listeners.forEach((fn) => fn());
 }
@@ -74,5 +79,5 @@ export function toast(text: string, kind: ToastMessage["kind"] = "info") {
   message = { text, kind, id: ++sequence };
   render();
   listeners.forEach((fn) => fn());
-  timer = setTimeout(dismissToast, kind === "error" ? 6500 : 3200);
+  timer = setTimeout(dismissToast, duration(kind === "error" ? "toast-duration-error" : "toast-duration-info"));
 }

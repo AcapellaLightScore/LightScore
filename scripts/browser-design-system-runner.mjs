@@ -1,5 +1,5 @@
-/** Reproducible native-browser P3 checks against an already-running development preview.
- * BASE_URL=https://… EVIDENCE_DIR=/tmp/… node scripts/browser-design-system-runner.mjs
+/** Native-browser adapter parity and keyboard checks.
+ * Run npm run test:browser:design-system for a disposable repository-relative host.
  * Does not seed, stop the preview, or change product data.
  */
 import assert from "node:assert/strict";
@@ -14,9 +14,9 @@ import {
 } from "./browser-design-system.mjs";
 const base =
   process.env.BASE_URL ??
-  "https://lightscore-main-app-59737521.tailf5ea68.ts.net";
+  "http://localhost:3000";
 const evidence =
-  process.env.EVIDENCE_DIR ?? "/tmp/aicap-design/evidence/p3-fix";
+  process.env.EVIDENCE_DIR ?? process.env.BROWSER_EVIDENCE ?? ".review-evidence/design-system";
 fs.mkdirSync(evidence, { recursive: true });
 const browser = await chromium.launch({
   headless: true,
@@ -47,6 +47,7 @@ try {
           contexts = await page.evaluate(verifyDesignSystemContexts);
         assert.deepEqual(comparison.mismatches, []);
         assert.deepEqual(contexts.mismatches, []);
+        await page.keyboard.press("Tab"); // Trusted keyboard modality for computed :focus-visible checks.
         const behavior = await page.evaluate(verifyDesignSystemBehavior),
           fixes = await page.evaluate(verifyP3ReviewFixes);
         // Actual browser-generated Tab events, in addition to the boundary handler assertions.
@@ -141,6 +142,9 @@ try {
           fixes.count,
           "review assertions",
         );
+      } catch (error) {
+        console.error({errors,body:(await page.locator("body").innerText()).slice(0,2000)});
+        throw error;
       } finally {
         await context.close();
       }

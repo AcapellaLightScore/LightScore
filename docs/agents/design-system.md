@@ -3,55 +3,86 @@
 `src/design-system/tokens.css` is the authored design-value source. It defines primitive
 pigments, shared theme-independent roles and complete varying semantic mappings for `night-paper`, `parchment`, and `velvet`, the
 orthogonal Revival type preset and Tailwind's semantic adapter.
-P1 preserves the existing appearance; owner decisions in AICAP-28 remain pending.
+The system preserves the existing appearance; owner decisions in AICAP-28 remain pending.
 
 ```mermaid
 flowchart LR
   T[tokens.css: primitives → semantic roles] --> U["@theme inline: tw: utilities"]
-  U --> R[Pure typed recipes: P3]
-  R --> C[React and DOM adapters: P3]
+  U --> R[Pure typed recipes]
+  R --> C[React and DOM adapters]
   C --> S[Screens]
   T --> A[Immutable theme snapshot]
-  A --> D[Canvas / SVG / PDF inputs: P2]
+  A --> D[Canvas / SVG / PDF inputs]
 ```
 
 ## Add a token
 
-1. Reuse a semantic role when its purpose and appearance are the same. When existing
-   appearances differ, give them distinct roles; do not normalize without an owner decision.
-2. Name private pigments by origin (for example `--pigment-admin-accent`), then map a shared
-   role once in `:root`, or a varying role in every theme block. The theme blocks must have
-   identical key sets and must never redefine the shared set.
-   Type, dimension, effect, motion, spectrum, material, and print values belong here too.
-   Keep `--ds-*` backing variables even when no utility uses them: renderers need them.
-3. Expose semantic `@theme inline` mappings. The pixel-valued space scale uses its authored
-   numbers (`tw:p-2` is 2px, not Tailwind's default 8px); layer names map via `--z-index-*`
-   (`tw:z-dialog`). All authored spacing, layers, sizes and shadows are exposed.
-   Use complete literal class strings such as `tw:bg-surface tw:text-ink tw:border-rule`.
-   Prefix goes before variants: `tw:hover:bg-surface-hover`. The default Tailwind theme
-   namespaces are reset; no default palette, font, radius or shadow vocabulary is available.
-4. For concrete renderer colors/fonts, extend `colorRoles`/`fontRoles` in `theme/index.ts`.
-   `readTheme().roles` also includes every material/dimensional value. The parser accepts
-   authored sRGB hex/RGB and generated degree-based HSL; adding a different color space
-   requires extending and testing normalization, not a silent fallback.
-5. Run `npm run check:design-tokens`, typecheck, and the relevant tests/browser checks.
+1. Reuse the role for the same purpose and rendered value. Names describe a purpose:
+   `--ds-space-control`, `--ds-radius-card`, `--ds-control-height-touch`, `--ds-stroke-focus`,
+   `--ds-layer-dialog`. Rule numbers, selector indices, and values in names are forbidden.
+   Equal values serving the same role are one token. Preserve different values under distinct
+   names while an owner decision is pending; never normalize appearance as part of a rename.
+2. Component tokens compose spacing, radius, size/type, leading, tracking and stroke scales.
+   A raw length is forbidden when an equal scale step exists (including inside shorthands,
+   shadows, transforms and theme paints). Preserve units: rem/em roles retain their relative
+   behavior. Equal element metrics with the same purpose share a role; zero geometry uses
+   `space-none` / `flush`, while zero line height uses unitless `leading-none`.
+   Custom-property names are at most 48 characters including `--` and never contain another
+   `--`. Short role names replace selector paths; numeric ordinals are not component roles.
+   `design-token-policy.mjs` and the guard enforce these constraints.
+   Standalone unitless zero in geometric shorthands also composes `space-none` or
+   `radius-none`. Unitless arithmetic inputs (such as normalized card tilt at rest),
+   opacity and color channels retain their numeric grammar instead of taking a length role.
+
+   The core spacing scale is `none`, `hairline`, `micro`, `compact`, `snug`, `small`, `control`,
+   `content`, `section`, `panel`, `page`, `stage`. Existing density roles such as `tight`,
+   `inline`, `row`, `action`, and `heading` compose that scale. Zero-spacing utilities use
+   `flush` (`tw:p-flush`), leaving native `max-w-none` / `max-h-none` limits intact.
+   Position roles such as `center` do not reuse a radius merely because the values match. Radii use `field`, `track`,
+   `control-dense`, `media`, `indicator`, `tile-dense`, `menu`, `control`, `icon`, `segment`,
+   `card`, `tile`, `card-roomy`, `dialog`, `dialog-roomy`, `sheet`, `pill`, and `round`.
+   D08/D10 retain distinct control/card densities; D12 retains the dialog/sheet distinctions.
+3. Define shared dimensions, type metrics and motion once on `:root`. Define every display
+   paint, including pigments mapped to renderer roles, gradients, glows, shadows and transparent
+   materials, in **every theme block** with identical key sets. Equal values across themes are
+   intentional parity mappings. Only `print-paper` and `print-ink` are theme-independent paint
+   exceptions: D18 keeps exported engraving independent of the display theme. Private
+   `--pigment-*` declarations are ingredients, not component APIs.
+4. Expose an ordinary property through `@theme inline` and use complete semantic classes such
+   as `tw:p-control tw:rounded-card tw:text-ink tw:border-rule tw:z-dialog`.
+   `tw:p-control` uses the authored spacing role, not Tailwind's numeric default scale.
+   The prefix precedes variants: `tw:hover:bg-surface-hover`. The default theme namespaces
+   are reset. Full background/font/border/transition shorthands and raw authored shadow lists
+   use the small semantic `surface-*`, `type-*`, `frame-all-*`, `motion-*`, and `elevation-*`
+   helpers because those shorthands cannot be expressed by an ordinary theme namespace.
+   Never create a selector-specific utility or a utility/variant numbered after a rule.
+5. Renderer inputs stay in the snapshot contract even when no utility consumes them.
+   `fontRoles`, spectrum families and dynamically selected material roles are public consumers;
+   a text search alone cannot prove their tokens unused. Extend `colorRoles`/`fontRoles` in
+   `theme/index.ts` when adding concrete renderer colors/fonts. `readTheme().roles` contains
+   every authored role. Run the guard, typecheck and relevant unit/browser checks.
 
 ## Add a theme or preset
 
 Add one complete varying-role block in `tokens.css` and one entry in
-`theme/resolver.js`'s `themeRegistry` (ID, label, URL aliases, storage key, default title start,
-color scheme, optional system appearance and menu label policy). Existing translated labels
-are retained; `menuLabel: null` keeps Velvet URL-only, as before. New entries without a
-translation key use their registry label. Copy an existing theme block to retain its
-complete key set, then edit its role values. Shared roles come from `:root`.
-There are no legacy theme attributes or compatibility aliases. Components never select a
-theme ID. Material recipes use the `material-family` and `color-scheme` token values for their
-paper/waves and light material strategies; a new theme chooses these values in its block.
+`theme/resolver.js`'s `themeRegistry` (ID, label, aliases, storage key, title start and menu
+policy). Color scheme comes from the token block. Copy an existing block to retain the
+complete key set, then change role values there: player disc, selected pills, voice materials,
+library cover ground, sheens and renderer effects are included. Shared roles supply geometry
+and typography; they do not hide an extra display palette. Existing translated labels remain;
+`menuLabel: null` keeps Velvet URL-only. New entries can use their registry label.
 
-`npm run test:browser:theme-extension` adds a test-only fourth block and registry entry through
-Vite transforms, then renders React auth/account/invite/admin/showcase, the main shell/sheets,
-and real canvas renderers. It asserts complete resolved roles, the distinctive new accent,
-and absence of legacy attributes. No fourth theme is included in production.
+Components never select a theme ID. CSS material recipes query `material-family` and
+`color-scheme`; renderers consume the typed `material-strategy` role for paper kind and
+ink/light compositing independently of the browser scheme. A new theme chooses those
+roles in its block. Revival is an orthogonal `data-type` preset declared solely in `tokens.css`:
+it overrides typography roles used by the same recipes without component selectors.
+
+`npm run test:browser:theme-extension` injects one test-only block and registry entry, strongly
+rotates all resolved display paints, and checks actual element paints and canvas pixels across
+main screens and renderers. Keep this loud-theme check as well as the three-theme parity
+matrix: complete token keys alone do not prove that a component consumes its theme roles.
+No fourth theme ships in production. Print colors remain stable under D18.
 
 The self-contained resolver's raw source, including its registry/helpers, is injected before
 hydration; Vite uses the identical serializer for the offline shell. Do not serialize compiled
@@ -69,7 +100,7 @@ SSR-safe. It reads each role with `getPropertyValue` using `theme/roles.generate
 from `tokens.css` by the Vite build/watch plugin; the regression test checks exact equality.
 It never relies on CSSStyleDeclaration custom-property enumeration. Load the eager CSS first.
 
-P2/P3 API:
+Theme API:
 
 - `subscribeTheme(fn, { immediate: true })` delivers the current snapshot and subsequent revisions;
   dispose the returned function. Without `immediate`, delivery starts on the next change.
@@ -100,17 +131,28 @@ Use `matchBreakpoint('panel', 'below')` / `tw:max-panel:`; there is no `panel-ma
 Read breakpoints lazily after CSS loads. Notation geometry and measured popup/drag positions
 remain in their existing modules.
 
-## Add a component (P3 contract)
+## Add a component
 
-Put framework-free typed class recipes under `design-system/recipes/`. They may import
-other recipes via `./` or `../recipes/`, plus type-only token/theme imports; runtime theme,
-React, DOM adapters and application dependencies are forbidden. Static/dynamic imports and
-re-exports all follow this allowlist.
-Both `design-system/react/` and `design-system/dom/` consume those recipes. Preserve all
-`data-action`, `data-bind` and ID hooks during screen migration. New primitives explicitly
-normalize their own controls; global Preflight is deliberately omitted.
+Start with an existing primitive (`Button`, `Field`, `Dialog`, `Card`, `Menu`, and their DOM
+builders) when its semantics fit. Both adapters use the same pure recipe. Add a named variant
+for an actual density, intent or focus difference; do not patch a completed class string.
+For a domain composition, put typed named slots under `design-system/recipes/` and combine
+those primitives. For example `transportRecipe`, `voiceRowRecipe`, `libraryDialogRecipe`,
+`libraryHeaderRecipe`, `transcriptionJobRecipe` and `ensemblePanelRecipe` centralize their
+component roles. Unknown slot/variant keys must fail typechecking.
 
-`app.css` is the sole CSS/font entry: `theme → fonts → tokens → native → components → utilities`.
+Structural containers use `appShellRecipe().root` or a named header/stage slot explicitly at
+construction. These native containers inherit their parent typography. Primitive controls
+normalize their own slots with `ds-reset`; global Preflight is deliberately omitted. Keep
+stable IDs, classes, `data-action` and `data-bind` hooks as behavior contracts, independently
+of the selected recipe. Never interpret a bag of hook strings to discover appearance.
+
+Recipes are framework-free TypeScript with complete literal semantic `tw:` strings. They may
+import other recipes and type-only token/theme declarations. Runtime theme, React, DOM and
+application imports are forbidden, including through re-exports. React and DOM builders own
+native semantics and lifecycle; recipes own visual roles and explicit variants.
+
+`app.css` is the CSS/font foundation: `theme → fonts → tokens → native → components → utilities`.
 It contains imports and Tailwind directives/mappings, with no ordinary component selectors.
 There is no legacy layer or legacy stylesheet. `recipes/shell.ts` supplies native route/domain
 composition at construction; `dom/main-screen.ts` attaches ID/class slots without DOM scanning.
@@ -121,17 +163,37 @@ limited to native/generated parts. Keep element-local inputs (`--written`, `--de
 colors and measured positions) at their consumer: hoisting their expressions to root freezes
 or invalidates them. Their authored dimensions/timings still come from `tokens.css`.
 
-Root SSR and the offline shell link the generated stylesheet before startup. The finalized
+Production `design-css-split.mjs` restricts the foundation’s utility candidates to shared/auth/admin
+recipes. `workspace.css` emits the app’s library/account/player/panel residue and ordered utilities
+from that same source. `/app` SSR links it eagerly after the foundation, before hydration; the
+offline shell links both in that order and the finalized service-worker manifest precaches both.
+Common utilities repeat in the app output to retain Tailwind’s global ordering when primitive
+and area classes compete. Development `app.css` remains the full catalog entry. See ADR 0005.
+
+Base controls/display/overlay factories accept pure typed extensions. `app-*` recipe modules
+compose those factories with the area recipes. React’s default adapter uses base recipes; DOM
+and the development `react/app` adapter use app composition. Adapter implementations and part
+contracts are shared factories, with no mutable registry. Do not import app recipes from the
+base factories, auth adapter or behavior helpers (including indirect part imports).
+
+Root SSR and the offline shell link the generated stylesheets before startup. The finalized
 service-worker asset manifest includes CSS/fonts and the generated favicon. Browser-installed
 SVG/manifest sources live under `design-system/assets`; `scripts/design-assets.mjs` resolves
 their default-theme roles for development and builds because external icons cannot inherit
 page CSS. Raster brand artwork remains fixed asset data.
 
 The dev-only `/dev/design-system` route renders the palette, spectrum and fonts and offers
-the switcher. Its module/route are eliminated from production. P3 adds the React/DOM
-component comparisons there.
+the switcher and shared React/DOM component comparisons. Its module/route are eliminated
+from production.
 
 ## Guard: zero baseline
+
+`npm run check:design-utilities` loads the full app.css entry through the pinned Tailwind
+compiler and checks every authored `tw:` candidate in src TypeScript/TSX literals. A candidate
+that emits no CSS fails, with source locations; `tw:peer` is the intentional selector marker.
+This catches unsupported named scales, missing variants and dead utility aliases. Unit tests
+also check emitted and computed focus offsets and include absent-utility negative controls.
+
 
 `npm run check:design-tokens` uses TypeScript and PostCSS ASTs. It checks source CSS/TS/JS,
 server presentation and authored public SVG/manifest assets. It flags literal colors
@@ -140,17 +202,23 @@ sinks), font stacks, default-palette/font utilities, arbitrary aesthetic utiliti
 screen-context control selectors and forbidden recipe imports. Font/font-family declarations and canvas/style font sinks use an allowlist: a variable,
 inherit/initial, or snapshot font (with tokenized sizing in shorthand). Named-color identifiers
 are checked throughout CSS values and style/cssText/setProperty/canvas sinks, skipping url(),
-var(), font-family, animation-name and content. Recipe dependencies use an allowlist. Outside
-the system, computed custom-property reads, legacy dataset theme reads, raw width/height media
-queries and direct viewport breakpoint comparisons are baseline-able violations. Unlayered CSS
-imports are forbidden outside app.css (root's eager app.css?url link is the explicit boundary).
-Arbitrary aesthetics, spacing, dimensions and stacking allow only semantic variable forms
-`-(--ds-…)` / `-[var(--ds-…)]`; use named adapter scales first.
+var(), font-family, animation-name and content. Recipe dependencies use an allowlist. Outside the system, computed custom-property reads and direct viewport breakpoint comparisons
+are rejected. Theme/type selectors belong only in tokens.css; attribute reads belong in the
+canonical theme runtime. Raw media/custom-variant breakpoints are checked in system CSS too.
+Every CSS import, including app.css imports, needs layer(); root's eager app.css?url link is
+the explicit TypeScript boundary. Arbitrary utility values require semantic variables (including
+Tailwind type hints and token-only expressions); use named adapter scales first. Native cascade
+keywords and the documented local geometry/material inputs below are structural exceptions.
+Numeric design-scale utilities require explicit authored token mappings. Rule-index and
+value-encoding names are rejected for tokens, utilities and variants. Shared screen paint
+belongs in complete theme blocks; only dedicated print paper/ink remain fixed (D18).
 
 Geometry triples alone and measured popup/drag positioning are permitted. This is conservative
 local AST/lexical analysis, **not a security boundary** or an interprocedural color-flow proof.
-Concatenated/joined strings, cross-module/object-field channels, aliased or reflective DOM
-access and arbitrary data flow are not exhaustively resolved. Snapshot-font recognition follows
+Color concatenation and numeric hex at local visual sinks, local theme-ID aliases, dataset
+property/bracket/destructuring access, attribute selectors/writes, arbitrary min/max breakpoint
+variants, container sizes, viewport-unit media sizes and dark variants are guarded. Cross-module
+channels, reflective DOM access and arbitrary data flow are not exhaustively resolved. Snapshot-font recognition follows
 local `.fonts` access and aliases, not a whole-program type proof. Review renderer inputs and
 external SVG output. Do not interpret a green guard as proof of complete theme reactivity.
 
@@ -170,6 +238,12 @@ so review new presentation-producing tooling and root HTML explicitly.
 
 Named narrow exceptions:
 
+- Native cascade keywords (`inherit`, `revert`, `initial`, `unset`, `none`) select inheritance
+  or structure rather than author a new design value. The typed font compiler utility reads
+  `--type-*` mappings, whose authored source remains tokens.css.
+- Token-backed material expressions may consume local `--c` (voice paint), `--rx`/`--ry`
+  (pointer tilt), and `--written`/`--ded-delay`/`--ded-wait` (writing progress/delay).
+  Generated table labels may use `content-[attr(data-label)]`.
 - `paper-noise-geometry`: only formation/flocs/tooth noise tuples in `paper.ts`, interpreted as
   cell counts and amplitude; color tuples at other sinks still fail.
 - `notation-stem-shape`: `black` in the existing filled/half stem-shape conditional, not paint.
@@ -195,7 +269,7 @@ The guard is local AST analysis with the limitations above, not an interprocedur
 | Radii | Legacy control/card/dialog, square field, admin control, transcription tile/card/dialog, sheet/menu/chip/round |
 | State | Disabled base/admin/auth/offline and dimmed-voice opacities remain separate |
 | Effects / motion | Material emboss vs menu/admin/focus shadows; switch/fast/normal/slow and transcription/dedication timings; distinct stacking contexts |
-| Display / print | Display ink/fonts versus stable print paper/ink and LiberationSerif / LightScoreEngraving asset identities; engraving is unchanged in P1 |
+| Display / print | Display ink/fonts versus stable print paper/ink and LiberationSerif / LightScoreEngraving asset identities; engraving is unchanged |
 
 The old offline marker fallback is explicitly mapped to `accent-offline`, so introducing a
 complete default accent fixes focus without recoloring that marker. `paper.ts` writes its
@@ -205,14 +279,63 @@ Material recipes and the renderer accessor consume the chosen semantic role dire
 
 ## Verification
 
-Run the ticket's `typecheck`, `test`, `build`, and `check:design-tokens` commands. P1's external
-evidence lives under `/tmp/aicap-design/evidence/p1/`. Production-built screenshots and computed
-styles cover auth, library, roll, staff, ensemble sheet, transcription dialog and admin in both
-main themes at desktop/mobile sizes; offline, SSR asset, theme contract and dev HMR checks
-complement that matrix. The repository currently has no ladder `docs/agents/verify.md` or
-`check:fast`/`check:full`/`verify:app` contract; do not label these commands as those rungs.
+Run `npm run typecheck`, `npm test`, `npm run build`, `npm run check:design-tokens`,
+`npm run check:design-utilities`,
+`npm run test:browser:design-system`, `npm run test:browser:theme-extension`,
+`npm run test:browser:renderer-themes`, and the isolated authentication/admin browser suites.
+Set `BROWSER_EVIDENCE` to an external evidence directory when collecting captures. CI runs the
+reusable contracts. `npm run test:design-mutants` proves the regression checks reject the
+review mutations without editing checkout files. Production-built browser checks cover auth, library, roll, staff, ensemble
+and account sheets, transcription and admin; renderer checks also compare live token edits
+against fresh instances. The repository currently has no ladder `docs/agents/verify.md` or
+`check:fast`/`check:full`/`verify:app` contract; these commands do not claim those rungs.
 
-P1 review-fix evidence and per-finding receipts: `/tmp/aicap-design/evidence/p1-fix/report.md`.
-
-P3 primitives, parity decisions, adapter examples and browser-check APIs:
+Primitives, parity decisions, adapter examples and browser-check APIs:
 [design-primitives.md](design-primitives.md).
+
+### Administration link
+
+`account-link` preserves Chromium’s former dark native link color (`rgb(158,158,255)`)
+for Night paper and Velvet. Parchment deliberately uses its accent link color instead of
+the native blue (`rgb(0,0,238)`); this is the sole visible P6d cleanup change.
+The color is a complete theme role, so added themes can choose their own link paint.
+
+### Material strategy
+
+Each theme authors `--ds-material-strategy: light | ink`, independent of its browser
+`color-scheme`. The typed snapshot maps `light` to device-selected paper, source-over
+lanterns and additive ribbons; `ink` to pergament, multiplied lanterns/glows and
+source-over ribbon lines. Night paper/Velvet select `light`; Parchment selects `ink`.
+These roles preserve the previous pixels without using browser scheme as a material policy.
+
+SVG fill/stroke and style paint are scanned, including named colors. `currentColor` and native
+non-paints are allowed. Fixed brand SVG artwork needs a reviewed path/SHA-256 entry in
+`brandArtworkHashes`, with its reason documented here; no current SVG requires an exception.
+
+### Loud-theme paint matrix
+
+The probe visits every element, including hidden nodes and `::before` / `::after`, and
+records all color, background, physical border, outline, column-rule, shadow, SVG fill/stroke,
+filter, caret, accent, text-decoration and WebKit text/filter paints. Full matrices are
+compressed JSON artifacts; no element limit or selector sample is used. Unchanged nontransparent
+paints fail except these property/element-specific Chromium defaults in `theme-paint-probe.mjs`:
+
+- Transparent grounds, `none`/`auto`, and pseudos with no generated box.
+- Initial dark text on empty generated decorations, and currentColor on absent strokes.
+- Dark native fieldset groove borders and native select/option palettes.
+- Initial SVG fill on non-painting containers, filter defaults on unrelated elements,
+  definition/mask coverage, and straight open subpaths with zero fill area.
+
+Literal fill/stroke on visible SVG geometry and colors in shadows/gradients remain subject
+to both the guard and loud-theme test. The hardcoded-paint mutant must still fail.
+
+`npm run test:browser:design-parity` compares all rendered computed properties, generated
+content and exact screenshot pixels on auth/admin and main app states at 1440/768/390 for
+all three themes. Supply `PARITY_BASE`, `PARITY_BASE_BUILD` and `PARITY_BUILD` for the
+reference git revision and the two production builds, and an external `BROWSER_EVIDENCE`.
+The source fixture is archived from git; both sides use production CSS so minification does
+not become a false pixel regression. Large computed values use SHA-256 dictionary entries
+with full originals retained in each compressed artifact. Only Parchment’s Administration
+link color and pixels inside its measured box are allowed to differ.
+The offline browser flow verifies the precached area sheet has rules, its library stays a
+grid, and card geometry matches the online render.
