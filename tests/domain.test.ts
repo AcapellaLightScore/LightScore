@@ -462,7 +462,7 @@ test(
         await request(
           "account",
           "DELETE",
-          { deleteEnsembleIds: [] },
+          { deleteEnsembleIds: [], password:"domain-fixture-password-42" },
           lead.cookie,
         )
       ).status,
@@ -733,7 +733,7 @@ test(
         403,
       );
       await ok(path, "PATCH", { name: "New lead" }, member.cookie);
-      await ok("account", "DELETE", { deleteEnsembleIds: [] }, lead.cookie);
+      await ok("account", "DELETE", { deleteEnsembleIds: [], password:"domain-fixture-password-42" }, lead.cookie);
       assert.equal(
         (await request("me", "GET", undefined, lead.cookie)).status,
         401,
@@ -743,7 +743,7 @@ test(
           await request(
             "account",
             "DELETE",
-            { deleteEnsembleIds: [] },
+            { deleteEnsembleIds: [], password:"domain-fixture-password-42" },
             member.cookie,
           )
         ).status,
@@ -1158,13 +1158,13 @@ test(
   async () => {
     const u = await account();
     const e = await ok("ensembles", "POST", { name: "Sole" }, u.cookie);
-    const missingConfirmation=await request('account','DELETE',undefined,u.cookie);
+    const missingConfirmation=await request('account','DELETE',{password:'domain-fixture-password-42'},u.cookie);
     assert.equal(missingConfirmation.status,409);
     assert.deepEqual((await missingConfirmation.json()).current,[e.id]);
     let r = await request(
       "account",
       "DELETE",
-      { deleteEnsembleIds: [] },
+      { deleteEnsembleIds: [], password:"domain-fixture-password-42" },
       u.cookie,
     );
     assert.equal(r.status, 409);
@@ -1903,4 +1903,38 @@ test('sign-out returns cache clearing and revokes session',async()=>{
  const user=await account();const response=await request('auth/sign-out','POST',{},user.cookie);
  assert.equal(response.status,200);assert.equal(response.headers.get('clear-site-data'),'"cache"');
  assert.equal((await request('me','GET',undefined,user.cookie)).status,401);
+});
+
+
+test('account deletion verifies fresh and aged session passwords before confirmation', async () => {
+  for (const aged of [false, true]) {
+    const singer = await account();
+    if (aged) await pool.query("update session set created_at=now()-interval '11 minutes' where user_id=$1", [singer.id]);
+    for (const password of [undefined, '', 'wrong-password']) {
+      const response = await request('account', 'DELETE', {password}, singer.cookie);
+      assert.equal(response.status, 401);
+      assert.equal((await response.json()).code, 'recent_auth_required');
+      assert.equal((await pool.query('select id from "user" where id=$1', [singer.id])).rowCount, 1);
+    }
+    const e = await ok('ensembles', 'POST', {name:'Deletion confirmation'}, singer.cookie);
+    const wrong = await request('account', 'DELETE', {password:'domain-fixture-password-42',deleteEnsembleIds:[]}, singer.cookie);
+    assert.equal(wrong.status, 409, 'existing wrong-confirmation handling remains');
+    await ok('account', 'DELETE', {password:'domain-fixture-password-42',deleteEnsembleIds:[e.id]}, singer.cookie);
+    assert.equal((await pool.query('select id from "user" where id=$1', [singer.id])).rowCount, 0);
+  }
+});
+
+
+test('voice identities persist with the piece across rename and removal',async()=>{
+ const singer=await account();const e=await ok('ensembles','POST',{name:'Numbered choir'},singer.cookie);
+ const content=(await import('node:fs')).readFileSync('tests/fixtures/voices-16.musicxml','utf8');
+ let piece=await ok(`ensembles/${e.id}/pieces`,'POST',{title:'Sixteen voices',content:{format:'musicxml',body:content},idempotencyKey:crypto.randomUUID()},singer.cookie);
+ const numbers=Object.fromEntries(Array.from({length:16},(_,i)=>['P'+(i+1),i+1]));
+ const patch=(op:string,key:string,value:unknown)=>ok(`ensembles/${e.id}/pieces/${piece.id}`,'PATCH',{op,key,value},singer.cookie);
+ piece=await patch('defaults','voiceNumbers',numbers);
+ await patch('partName','P4','Renamed green voice');await patch('removed','P2',true);
+ const fresh=await ok(`ensembles/${e.id}/pieces/${piece.id}`,'GET',undefined,singer.cookie);
+ assert.deepEqual(fresh.settings.formatDefaults.voiceNumbers,numbers);
+ const invalid=await request(`ensembles/${e.id}/pieces/${piece.id}`,'PATCH',{op:'defaults',key:'voiceNumbers',value:{P1:1,P2:1}},singer.cookie);
+ assert.equal(invalid.status,400,'duplicate voice numbers are rejected');
 });

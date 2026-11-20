@@ -103,11 +103,11 @@ for user requests (`escape`, `outside`, `button`); `onClose` reports a completed
 Controlled `open=false`, unmount and StrictMode replay dispose silently. Use `requestClose()`
 for cancel buttons and `close()` after successful work. Policies: `escape`/`outside` =
 `close | ignore`, `busyCancel` = `block | allow` (block by default). Explicit close always works.
-D12 centers all dialogs except `transcription-review`, which stays full-screen. Historical
+D12 centers forms and panels; D48 small desktop menus are the anchored exception.
+`transcription-review` stays full-screen. Historical
 `Sheet` and its DOM builder remain centered aliases; the unused `Drawer` alias is retired; no swipe dismissal
-or drag handle remains. Use `<Dialog variant="admin-detail" open={open} title={title}
-behavior={{opener, busy}} onCancel={close}>…</Dialog>` for admin details. Its content scrolls
-inside the viewport-bounded panel. `openDialog` measures `visualViewport` on resize/scroll,
+or drag handle remains. Admin user, ensemble and piece details are routed pages (D49).
+Dialog content scrolls inside the viewport-bounded panel. `openDialog` measures `visualViewport` on resize/scroll,
 retains safe-area margins and scrolls the focused field into view when a keyboard reduces the
 visible area. The shared fade retains the native top layer through exit; reduced motion closes
 immediately. Presentation stays fixed until close; the next opening uses the current layout.
@@ -137,11 +137,23 @@ the host uses the token maximum width and viewport gutters, with wrapping messag
 stay within the active panel; field errors use Field's adjacent error slot. Static `Toast` /
 `createToast` consume the same appearance recipe; host geometry uses `toastPlacementRecipe`.
 
+The power hint is an actionable persistent notice (D15), with Got it and Don't show again
+choices. Its design-system `placePlayerNotice` behavior measures the visible info row,
+transport and numbered voice key, keeping the note above them as the footer wraps or the
+viewport rotates. On short screens its content scrolls between the header and footer.
+`scripts/browser-power-hint.mjs` checks actual populated-player geometry and pointer opening
+of controls at the sync-suite sizes plus desktop, tablet, phone and short landscape sizes
+in EN/DE and both supported themes; it also retains native-modal and dismissal checks.
+
 Compact member/scan-job menus stay anchored popovers at every width (D13). `bindRowMenu(details,
 menu.element)` preserves the native disclosure and keyboard contract, uses the popover top layer
 to avoid clipping, and disposes placement/listeners with the owning screen. `anchorPopover` tracks
 resize, captured scrolling, visual viewport and element resizing; collision handling bounds the
-panel and provides inner scrolling. Main library/player menus use centered dialogs.
+panel and provides inner scrolling.
+
+### Small menu presentation
+
+All small menus opened through `openLibraryMenu` follow D48: library/player main menus, mode badge, ensemble picker, song-card and voice-row ⋯ menus, sections, and settings submenus. At the `transport` breakpoint (1200px) or above, with a fine primary pointer and hover, `menuPresentation()` chooses the typed `anchored` dialog recipe through `createMenuOverlay()`. Other widths/input use the centered dialog with backdrop; anchored backdrops are transparent. Native dialog/menu roles, Escape/outside dismissal and focus trapping remain. D24 fixes presentation and DOM identity for each opening; rotation only re-bounds it, and the next open adapts. If refresh removes or hides the anchor, placement retains its last valid rectangle and focus stays in the menu; dismissal restores the opener or the first available control in its nearest surviving containing region. Forms, tempo/bar controls and real panels stay centered (D12). Member/transcription-job disclosure menus retain D13 popovers at every width.
 `src/ui.ts` retains only `closeOverlay`, `isNarrow` and the domain `MenuItem` type.
 `dom/legacy.ts` documents these signatures; no legacy visual constructors remain. Stable
 class/query hooks remain for event delegation, tours and renderer measurement. Native controls keep inherited color-scheme, visibility,
@@ -315,15 +327,19 @@ Add a theme through one complete token block and one registry entry. Run
 
 ## Applied responsive and integration decisions
 
-**D06.** Administration uses the same LightScore paper, accent, typography and shared controls in a deliberately compact work layout. Its former independent palette is retired; admin detail-page presentation remains pending owner confirmation.
+**D06.** Administration uses the same LightScore paper, accent, typography and shared controls in a deliberately compact work layout. Its former independent palette is retired; D49 confirms routed user, ensemble and piece detail pages.
 
-**D12 B.** Settings, prompts and main menus use centered native dialogs with safe viewport margins and a shared fade; transcription score review alone remains full-screen. Historical Sheet names are centered compatibility aliases; drag handles and swipe/slide behavior are retired. The desktop main-menu placement question remains pending owner approval.
+**D12 B.** Settings, prompts and small-screen menus use centered native dialogs with safe viewport margins and a shared fade; transcription score review alone remains full-screen. Historical Sheet names are centered compatibility aliases; drag handles and swipe/slide behavior are retired. D48 makes small desktop menus the explicit anchored exception.
 
-**D13 B.** Compact member and transcription-job row menus remain anchored popovers at every width, including phones. Shared placement bounds their geometry and keeps long menus internally scrollable; main menus retain the D12 dialog transport.
+**D13 B.** Compact member and transcription-job row menus remain anchored popovers at every width, including phones. Shared placement bounds their geometry and keeps long menus internally scrollable; small library/player menus follow D48; forms and panels stay centered.
 
-**D16.** People and membership tables use labeled records below the account breakpoint. Comparison and metric tables retain contained horizontal scrolling, while administration navigation scrolls horizontally. These table/navigation choices do not settle the pending admin detail-page presentation.
+**D16.** People and membership tables use labeled records below the account breakpoint. Comparison and metric tables retain contained horizontal scrolling, while administration navigation scrolls horizontally. D49 confirms routed detail pages with member search.
 
 **D23.** The tablet library uses fixed 280px comfortable card columns between the compact and transport breakpoints, showing fewer, wider covers instead of squeezing extra columns. Below the compact breakpoint the existing single-column phone records remain.
+
+**D48 B.** See [Small menu presentation](#small-menu-presentation) for the policy and lifecycle contract.
+
+**D49 B.** User, ensemble and piece details remain routed pages with direct links and Back navigation. Detail member tables reuse the shared admin toolbar, EN/DE search labels, filtered-empty state and Clear filters. Search uses the same 250ms-debounced, server-paginated memberships endpoint and combined email/name/ensemble matching as lists; no full cursor crawl or client cache. Search, sort, filters and page-size changes reset page/cursor before the new render commits. Page indices clamp to available cursors; deleting the final row of the final page retreats before displaying an empty state.
 
 **D24.** An open menu retains its chosen presentation and DOM identity through rotation. Shared viewport handling re-bounds and scrolls its contents; presentation is chosen again only for a later opening.
 
@@ -331,7 +347,7 @@ Add a theme through one complete token block and one registry entry. Run
 
 **D26 interim.** Until room permissions are designed separately, the EN/DE introduction describes the current Together behavior: everyone controls shared playback on every device; volume, mute and solo remain personal. It promises no missing “take the lead” command and introduces no new session permissions.
 
-**D21 pending owner approval.** An extended voice palette requires owner approval against the current colors before implementation. Existing voice colors, labels and renderer identification cues remain; this round makes no palette change.
+**D42 A (D21 approved).** The selected extension supplies colors 9–16 and stable numbered names in voice controls, score labels and the accessible key. The first eight palette roles and small-score spacing remain. D43’s Parchment green change still awaits comparison approval. See the applied decisions in [the design-system guide](design-system.md) for persistence and renderer boundaries.
 
 ### Responsive regression checks
 

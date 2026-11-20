@@ -100,7 +100,7 @@ function AuditSection({ initial, params, id }: { initial?: { items: AdminRow[]; 
   );
 }
 
-/** Loads one detail bundle (a single audited request) and reloads it after management changes. */
+/** Loads one detail bundle (a single read request) and reloads it after management changes. */
 function useDetail(kind: string, id: string) {
   const { setZone } = useAdmin();
   const [detail, setDetail] = useState<AdminRow | null>(null),
@@ -200,7 +200,7 @@ export function UserDetail({ id }: { id: string }) {
           </Section>
           <AdminRole profile={profile} sysadmin={sysadmin} onChanged={reload} />
         </div>
-        <AdminMemberships entity="users" profile={profile} onChanged={reload} />
+        <AdminMemberships key={profile.id} searchLabel={t.searchEnsembles} entity="users" profile={profile} onChanged={reload} />
         <AuditSection id={profile.id} initial={detail.sections?.audit} params={{ user: profile.id }} />
       </>}
     </DetailFrame>
@@ -229,7 +229,7 @@ export function EnsembleDetail({ id }: { id: string }) {
             [t.id, <Identifier value={profile.id} />],
           ]} />
         </Section>
-        <AdminMemberships entity="ensembles" profile={profile} onChanged={reload} />
+        <AdminMemberships key={profile.id} searchLabel={t.searchUsers} entity="ensembles" profile={profile} onChanged={reload} />
         <Section title={t.invitations} data-admin="invitations">
           <SectionTable
             key={"i" + profile.id + JSON.stringify(detail.sections?.invitations?.items?.length)}

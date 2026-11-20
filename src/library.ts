@@ -30,6 +30,7 @@ export interface StoredSong {
   // mutate a JSON Score just to change a label). Applied client-side after parsing, before the
   // part name is shown anywhere. Absent/undefined for a song with no renamed voices.
   partNameOverrides?: Record<string, string>;
+  voiceNumbers?: Record<string, number>;
   // A deliberately-saved default for this song (the "Save" action in main.ts), applied when the
   // song is freshly selected -- not written automatically on every transpose/BPM/marker change,
   // only when the user explicitly asks to remember the current setup. sections is only ever
@@ -87,6 +88,7 @@ function stored(m: PieceMetadata): StoredSong {
     importedAt: Date.parse(m.updatedAt),
     sortKey: Number(m.sortKey),
     partNameOverrides: s.partNames,
+    voiceNumbers: s.formatDefaults?.voiceNumbers,
     clefOverrides: s.clefOverrides,
     removedParts: Object.keys(s.removedParts ?? {}).filter(
       (k) => s.removedParts[k],
@@ -372,6 +374,31 @@ async function update(id: string, op: string, value: unknown, key?: string) {
       }, 0);
     }
     throw e;
+  }
+}
+export async function saveVoiceNumbers(id: string, numbers: Record<string, number>) {
+  if (isOffline() || activeEnsemble() === PUBLIC_ID || !account || !canEditPieces(activeEnsemble() ?? PUBLIC_ID)) return false;
+  const epoch = generation;
+  try {
+    // Deterministic initialization is best-effort: concurrent editors may write the
+    // same mapping. Do not use optimistic revision checks or interactive error events.
+    const response = await fetch(`/api${base()}/${id}`, {
+      method: "PATCH",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ op: "defaults", key: "voiceNumbers", value: numbers }),
+    });
+    if (response.status === 409) return true;
+    if (!response.ok) return false;
+    const m = await response.json() as PieceMetadata;
+    if (epoch === generation && m.revision >= (metadata.get(id)?.revision ?? 0)) {
+      metadata.set(id, m);
+      notify?.();
+    }
+    return true;
+  } catch {
+    // Keep the local numbers; missing stored defaults retry on a later opening.
+    return false;
   }
 }
 export async function updateSongMetadata(

@@ -3,6 +3,7 @@
  * Does not seed, stop the preview, or change product data.
  */
 import assert from "node:assert/strict";
+import { verifyMainMenuPolicy } from "./browser-main-menu-policy.mjs";
 import fs from "node:fs";
 import { chromium } from "playwright";
 import {
@@ -25,6 +26,14 @@ const browser = await chromium.launch({
 });
 const records = [];
 try {
+  const touch = await browser.newContext({ viewport: {width:1440,height:900}, hasTouch:true });
+  try {
+    const page = await touch.newPage();
+    await page.goto(`${base}/dev/design-system?design=papier`);
+    await page.locator('.ds-specimens').waitFor();
+    await verifyMainMenuPolicy(page, {width:1440,height:900});
+    console.log("Wide coarse-pointer tablet keeps centered main menus PASS");
+  } finally { await touch.close(); }
   for (const theme of ["papier", "pergament", "samt"])
     for (const viewport of [
       { width: 1440, height: 900 },
@@ -46,6 +55,7 @@ try {
             '[data-specimen="table/pagination"] [data-renderer="dom"] div',
           )
           .waitFor();
+        await verifyMainMenuPolicy(page, viewport);
         const comparison = await page.evaluate(verifyDesignSystemPage),
           contexts = await page.evaluate(verifyDesignSystemContexts);
         assert.deepEqual(comparison.mismatches, []);

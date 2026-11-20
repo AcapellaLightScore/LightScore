@@ -114,7 +114,7 @@ const png=await sharp({create:{width:16,height:16,channels:3,background:'white'}
 async function setup(){const lead=await account();const e=await ok('ensembles','POST',{name:'Transcription fixture',kind:'choir'},lead.cookie);const r=await upload(e.id,lead.cookie,png);assert.equal(r.status,201,await r.clone().text());return {lead,e,source:await r.json()};}
 async function job(e:string,cookie:string,source:string,key=crypto.randomUUID()){const r=await fetch(base+`/api/ensembles/${e}/transcriptions`,{method:'POST',headers:{origin:base,cookie,'content-type':'application/json','idempotency-key':key},body:JSON.stringify({sourceObjects:[source]})});assert.equal(r.status,201,await r.clone().text());return r.json();}
 async function view(e:string,cookie:string,j:string){return ok(`ensembles/${e}/transcriptions/${j}`,'GET',undefined,cookie);}
-test('private originals validate content and bounds, dedupe, authorize and audit access',async()=>{
+test('private originals validate content and bounds, dedupe and authorize without auditing reads',async()=>{
  const {lead,e,source}=await setup();const outsider=await account();
  assert.equal((await upload(e.id,lead.cookie,Buffer.from('not an image'))).status,422);
  const limit=sourceLimits.photo;sourceLimits.photo=10;try{assert.equal((await upload(e.id,lead.cookie,png)).status,413);}finally{sourceLimits.photo=limit;}
@@ -126,7 +126,8 @@ test('private originals validate content and bounds, dedupe, authorize and audit
  assert.equal((await request(`ensembles/${e.id}/originals/guessed-key`,'GET',undefined,lead.cookie)).status,404);
  const streamed=await request(path,'GET',undefined,lead.cookie);assert.deepEqual(Buffer.from(await streamed.arrayBuffer()),png);
  const signed=await fetch(base+'/api/'+path+'?signed=1',{headers:{cookie:lead.cookie},redirect:'manual'});assert.equal(signed.status,302);const url=new URL(signed.headers.get('location')!);assert.equal(url.searchParams.get('X-Amz-Expires'),'60');assert.equal((await fetch(url)).status,200);
- assert.equal((await pool.query("select count(*)::int n from audit_events where target_id=$1 and action='original.access'",[source.id])).rows[0].n,2);
+ assert.equal((await pool.query("select count(*)::int n from audit_events where target_id=$1 and action='original.access'",[source.id])).rows[0].n,0);
+ assert.equal((await pool.query("select count(*)::int n from audit_events where target_id=$1 and action='original.upload'",[source.id])).rows[0].n,1);
 });
 test('durable jobs complete, immutable destination and concurrent import creates one validated piece',async()=>{
  const {lead,e,source}=await setup();const key=crypto.randomUUID();const j=await job(e.id,lead.cookie,source.id,key);assert.equal((await job(e.id,lead.cookie,source.id,key)).id,j.id);
@@ -216,7 +217,7 @@ test('sysadmin stop and metrics APIs enforce platform role, and sole-member clos
  await ok('admin/transcription/control','PUT',{paused:false,reason:'Integration resume'},lead.cookie);env.TRANSCRIPTION_EMERGENCY_STOP='1';try{assert.equal(await new TranscriptionWorker().tick(),false);}finally{env.TRANSCRIPTION_EMERGENCY_STOP='0';}await new TranscriptionWorker().tick();assert.equal((await view(e.id,lead.cookie,j.id)).state,'completed');
  const range='admin/transcription/metrics?from=2000-01-01T00:00:00Z&to=2100-01-01T00:00:00Z';const metrics=await ok(range,'GET',undefined,lead.cookie);assert.ok(metrics.some((r:any)=>r.model==='fake-transcription-v1'));
  const key=(await pool.query('select object_key from stored_objects where id=$1',[source.id])).rows[0].object_key;
- await ok('account','DELETE',{deleteEnsembleIds:[e.id]},lead.cookie);assert.equal((await pool.query('select 1 from stored_objects where id=$1',[source.id])).rowCount,0);assert.equal((await pool.query('select 1 from object_deletions where object_key=$1',[key])).rowCount,1);
+ await ok('account','DELETE',{deleteEnsembleIds:[e.id],password:'domain-fixture-password-42'},lead.cookie);assert.equal((await pool.query('select 1 from stored_objects where id=$1',[source.id])).rowCount,0);assert.equal((await pool.query('select 1 from object_deletions where object_key=$1',[key])).rowCount,1);
  await pool.query('update object_deletions set created_at=$2 where object_key=$1',[key,new Date(0)]);await cleanupObjects();
  const {storage}=await import('../server/storage.server');await assert.rejects(()=>storage().head(key));
 });
@@ -463,7 +464,8 @@ test('UI endpoints isolate ensembles, validate pages/options and sandbox cached 
  for(const options of [{title:'x'.repeat(201)},{title:'a\0b'},{title:'\ud800'},{language:'fr'}])assert.equal((await request(list,'POST',{sourceObjects:[source.id],options},lead.cookie)).status,400);
  const responses=await Promise.all(Array.from({length:4},()=>request(page,'GET',undefined,lead.cookie)));
  for(const response of responses){assert.equal(response.status,200,await response.clone().text());assert.equal(response.headers.get('content-type'),'image/png');assert.equal(response.headers.get('cache-control'),'no-store');assert.equal(response.headers.get('content-security-policy'),'sandbox');await response.arrayBuffer();}
- assert.equal((await pool.query("select count(*)::int n from audit_events where actor_id=$1 and target_id=$2 and action='original.access'",[lead.id,source.id])).rows[0].n,1);
+ assert.equal((await pool.query("select count(*)::int n from audit_events where actor_id=$1 and target_id=$2 and action='original.access'",[lead.id,source.id])).rows[0].n,0);
+ assert.equal((await pool.query("select count(*)::int n from audit_events where target_id=$1 and action='original.upload'",[source.id])).rows[0].n,1);
  const row=(await pool.query('select options from transcription_jobs where id=$1',[j.id])).rows[0];assert.equal(row.options.title,'score');
 });
 

@@ -1,3 +1,12 @@
+import { matchBreakpoint } from "../theme";
+
+/** D48: wide fine-pointer desktops anchor small menus; choose only at open time. */
+export function menuPresentation(): "anchored" | "centered" {
+  return matchBreakpoint("transport", "min").matches &&
+    window.matchMedia("(hover: hover) and (pointer: fine)").matches
+    ? "anchored" : "centered";
+}
+
 /** Collision-aware measured placement; presentation never switches while open (D24). */
 export function anchorPopover(
   panel: HTMLElement,
@@ -7,6 +16,7 @@ export function anchorPopover(
   const view = panel.ownerDocument.defaultView!;
   const viewport = view.visualViewport;
   let frame = 0;
+  let lastAnchor: DOMRect | undefined;
   const place = () => {
     const gap = parseFloat(getComputedStyle(panel.ownerDocument.documentElement).getPropertyValue("--ds-space-small")) || 0;
     const left = (viewport?.offsetLeft ?? 0) + gap;
@@ -15,7 +25,11 @@ export function anchorPopover(
     const bottom = top + (viewport?.height ?? view.innerHeight) - 2 * gap;
     panel.style.maxWidth = `${Math.max(0, right - left)}px`;
     panel.style.maxHeight = `${Math.max(0, bottom - top)}px`;
-    const a = anchor.getBoundingClientRect(), p = panel.getBoundingClientRect();
+    const measured = anchor.getBoundingClientRect();
+    if (anchor.isConnected && measured.width > 0 && measured.height > 0) lastAnchor = measured;
+    // Grid refreshes can replace the opener. Keep focus in the menu and its last good position.
+    if (!lastAnchor) return; // Wait for a measurable anchor before the first placement.
+    const a = lastAnchor, p = panel.getBoundingClientRect();
     const x = align === "start" ? a.left : align === "center" ? a.left + (a.width - p.width) / 2 : a.right - p.width;
     const y = a.bottom + gap + p.height <= bottom ? a.bottom + gap : a.top - gap - p.height;
     panel.style.left = `${Math.max(left, Math.min(right - p.width, x))}px`;

@@ -89,15 +89,19 @@ retained parity variants, guard exceptions and verification limitations.
 
 ## Additional applied owner decisions
 
-**D06.** Administration uses the same LightScore paper, accent, typography and shared controls in a deliberately compact work layout. Its former independent palette is retired; admin detail-page presentation remains pending owner confirmation.
+**D06.** Administration uses the same LightScore paper, accent, typography and shared controls in a deliberately compact work layout. Its former independent palette is retired; D49 confirms routed user, ensemble and piece detail pages.
 
-**D12 B.** Settings, prompts and main menus use centered native dialogs with safe viewport margins and a shared fade; transcription score review alone remains full-screen. Historical Sheet names are centered compatibility aliases; drag handles and swipe/slide behavior are retired. The desktop main-menu placement question remains pending owner approval.
+**D12 B.** Settings, prompts and small-screen main menus use centered native dialogs with safe viewport margins and a shared fade; transcription score review alone remains full-screen. Historical Sheet names are centered compatibility aliases; drag handles and swipe/slide behavior are retired. D48 makes small desktop main menus the explicit anchored exception.
 
-**D13 B.** Compact member and transcription-job row menus remain anchored popovers at every width, including phones. Shared placement bounds their geometry and keeps long menus internally scrollable; main menus retain the D12 dialog transport.
+**D13 B.** Compact member and transcription-job row menus remain anchored popovers at every width, including phones. Shared placement bounds their geometry and keeps long menus internally scrollable; small main menus follow D48; forms and panels retain D12 centering.
 
-**D16.** People and membership tables use labeled records below the account breakpoint. Comparison and metric tables retain contained horizontal scrolling, while administration navigation scrolls horizontally. These table/navigation choices do not settle the pending admin detail-page presentation.
+**D16.** People and membership tables use labeled records below the account breakpoint. Comparison and metric tables retain contained horizontal scrolling, while administration navigation scrolls horizontally. D49 confirms routed detail pages with member search.
 
 **D23.** The tablet library uses fixed 280px comfortable card columns between the compact and transport breakpoints, showing fewer, wider covers instead of squeezing extra columns. Below the compact breakpoint the existing single-column phone records remain.
+
+**D48 B.** All small menus opened through `openLibraryMenu` follow D48: library/player main menus, mode badge, ensemble picker, song-card and voice-row ⋯ menus, sections, and settings submenus. At the `transport` breakpoint (1200px) or above, with a fine primary pointer and hover, `menuPresentation()` chooses the typed `anchored` dialog recipe through `createMenuOverlay()`. Other widths/input use the centered dialog with backdrop; anchored backdrops are transparent. Native dialog/menu roles, Escape/outside dismissal and focus trapping remain. D24 fixes presentation and DOM identity for each opening; rotation only re-bounds it, and the next open adapts. If refresh removes or hides the anchor, placement retains its last valid rectangle and focus stays in the menu; dismissal restores the opener or the first available control in its nearest surviving containing region. Forms, tempo/bar controls and real panels stay centered (D12). Member/transcription-job disclosure menus retain D13 popovers at every width.
+
+**D49 B.** User, ensemble and piece details remain routed pages with direct links and Back navigation. Detail member tables reuse the shared admin toolbar, EN/DE search labels, filtered-empty state and Clear filters. Search uses the same 250ms-debounced, server-paginated memberships endpoint and combined email/name/ensemble matching as lists; no full cursor crawl or client cache. Search, sort, filters and page-size changes reset page/cursor before the new render commits. Page indices clamp to available cursors; deleting the final row of the final page retreats before displaying an empty state.
 
 **D24.** An open menu retains its chosen presentation and DOM identity through rotation. Shared viewport handling re-bounds and scrolls its contents; presentation is chosen again only for a later opening.
 
@@ -105,4 +109,14 @@ retained parity variants, guard exceptions and verification limitations.
 
 **D26 interim.** Until room permissions are designed separately, the EN/DE introduction describes the current Together behavior: everyone controls shared playback on every device; volume, mute and solo remain personal. It promises no missing “take the lead” command and introduces no new session permissions.
 
-**D21 pending owner approval.** An extended voice palette requires owner approval against the current colors before implementation. Existing voice colors, labels and renderer identification cues remain; this round makes no palette change.
+**D42 A (D21 approved).** Voices 9–16 use the approved theme-specific extension in `tokens.css`; `spectrum` retains eight entries for unchanged ≤8 spacing and `extendedSpectrum` exposes sixteen. Larger counts keep the existing fallback. Neutral number badges retain complete names in rows/chips and the always-available score key; pinned staff names and sufficiently wide roll notes carry the same number. Overview first-event callouts avoid collisions, deferring crowded/unison identities to the keyboard-accessible key with solo/inspect. Piece defaults store the mapping by part ID (`formatDefaults.voiceNumbers`), allocated from import order before display filtering; rename, reorder, removal/restoration and split allocation preserve identity. Existing imported pieces initialize their mapping on the next editable online opening; read-only/offline openings derive the same initial import order until persisted. Renderers and DOM pigments still follow live snapshot revisions (appearance requests remain held through rehearsal under D05).
+
+**D43 A, pending comparison approval.** Keep Parchment voice 4 at `#5A8A2A`. The proposed `#527E26` may only be applied after the owner reviews real 8-voice roll/staff/mixer comparisons at 1440×900 and 390×844 plus linear-light Machado protanopia/deuteranopia/tritanopia simulations. Comparison evidence is retained outside git in the owner-decision implementation report. PDFs remain dark-on-white and do not consume voice pigments.
+
+**D44 A.** Every account-deletion request verifies the confirmation password, including fresh sessions. Existing inline wrong-password handling, confirmation checks and password failure budget remain.
+
+**D45 B.** Library cards retain complete wrapping titles. Cards stretch to their row height and their flex bodies place metadata at the bottom. D23's fixed 280px tablet width and phone records remain.
+
+**D46 A.** Keep the existing 2× canvas backing resolution cap for playback performance; no renderer resolution change.
+
+**D47 B.** The library menu title is “Settings” / “Einstellungen”; language remains one setting within it.

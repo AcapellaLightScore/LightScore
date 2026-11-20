@@ -2,6 +2,7 @@ import * as r from "../recipes";
 import * as p from "../parts";
 import {
   openDialog,
+  menuPresentation,
   bindMenu,
   toast,
   type DialogBehaviorOptions,
@@ -484,7 +485,7 @@ export function createDialog(options: DialogOptions) {
   const slots = r.dialogRecipe(options),
     dialog = element("dialog", slots.panel, undefined, options);
   dialog.dataset.ds = "dialog";
-  dialog.dataset.dialogLayout = options.variant === "transcription-review" ? "fullscreen" : "centered";
+  dialog.dataset.dialogLayout = options.presentation === "anchored" ? "anchored" : options.variant === "transcription-review" ? "fullscreen" : "centered";
   const titleId = `ds-dialog-${++fieldId}-title`,
     bodyId = titleId + "-body";
   if (options.title && !dialog.hasAttribute("aria-label") && !dialog.hasAttribute("aria-labelledby"))
@@ -521,9 +522,10 @@ export function createDialog(options: DialogOptions) {
   let controller: DialogController | undefined;
   return {
     element: dialog,
-    open: () =>
+    open: (behavior: DialogBehaviorOptions = {}) =>
       (controller = openDialog(dialog, {
         ...options.behavior,
+        ...behavior,
         motion: "panel",
         onClose: () => {
           options.behavior?.onClose?.();
@@ -534,6 +536,25 @@ export function createDialog(options: DialogOptions) {
     requestClose: () => controller?.requestClose("button"),
     setBusy: (value: boolean) => controller?.setBusy(value),
   };
+}
+/** All small library/player menus share D48; forms and panels retain D12 centering. */
+export function createMenuOverlay(options: DialogOptions & { anchor: HTMLElement }) {
+  const { anchor, ...config } = options;
+  const overlay = createDialog(config);
+  let panelClasses = r.dialogRecipe(config).panel.split(/\s+/);
+  return { ...overlay, open: () => {
+    if (overlay.element.open) return overlay.open();
+    const presentation = menuPresentation();
+    const nextClasses = r.dialogRecipe({ ...config, presentation }).panel.split(/\s+/);
+    overlay.element.classList.remove(...panelClasses.filter(token => !nextClasses.includes(token)));
+    overlay.element.classList.add(...nextClasses);
+    panelClasses = nextClasses;
+    overlay.element.dataset.dialogLayout = presentation;
+    // Clear measured geometry from a previous opening; the current transport measures again.
+    for (const property of ["left", "right", "top", "bottom", "max-width", "max-height"])
+      overlay.element.style.removeProperty(property);
+    return overlay.open({ opener: anchor, anchor: presentation === "anchored" ? anchor : undefined });
+  } };
 }
 export const createSheet = ({
   variant = "sheet",

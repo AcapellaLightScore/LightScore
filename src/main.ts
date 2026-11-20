@@ -1,6 +1,9 @@
+import { shouldHandlePlayerShortcut } from './player-shortcuts';
+import { createVoiceKey } from './design-system/dom/player';
+import { assignVoiceNumbers, voiceColor, voiceLabel } from './voiceIdentity';
 import { themeRegistry } from './design-system/theme';
 import { appShellRecipe, landingRecipe } from "./design-system/recipes/shell";
-import { createMainScreen, createPanelPart, createSectionMark, createOffsetControl, createCheckbox, createPlayerPart, createVoiceRow, createVoiceChip, createMixerVolume, createPlayerGlyph, createButton, updateButton, updateField, createLoading, createEmptyState, createSwitch, updateSwitch, createStatus, createAccountPart, createIconButton, createInput, createField, createCard, createBadge, createLibraryPart, updateLibraryBanner, createDialog, createSheet, createMenu, toast } from './design-system/dom';
+import { createMainScreen, createPanelPart, createSectionMark, createOffsetControl, createCheckbox, createPlayerPart, createVoiceRow, createVoiceChip, createMixerVolume, createPlayerGlyph, createButton, updateButton, updateField, createLoading, createEmptyState, createSwitch, updateSwitch, createStatus, createAccountPart, createIconButton, createInput, createField, createCard, createBadge, createLibraryPart, updateLibraryBanner, createDialog, createSheet, createMenu, createMenuOverlay, toast } from './design-system/dom';
 import { matchBreakpoint, hasExperimentalAppearance, setAppearanceRehearsing } from './design-system/theme';
 import { localLibrary } from './local-library';
 import { appendAdminAccountLink } from './admin-account';
@@ -30,7 +33,7 @@ import { StaffView } from './staffView';
 import { OverviewStrip } from './overview';
 import { colorForPart } from './palette';
 import { measureAtBeat, playedBeat, type Score } from './score';
-import { clearLibrary, scoreBody, deleteImportedSong, readScoreFile, saveSongOrder, songOrder, saveImportedSong, saveScanMarks, saveSongConfig, saveSongSections, subscribeToSongs, updateSongMetadata, type ScanMark, type SongFormat, type StoredSong, type VoiceClef } from './library';
+import { clearLibrary, scoreBody, deleteImportedSong, readScoreFile, saveSongOrder, songOrder, saveImportedSong, saveScanMarks, saveSongConfig, saveSongSections, subscribeToSongs, updateSongMetadata, saveVoiceNumbers, type ScanMark, type SongFormat, type StoredSong, type VoiceClef } from './library';
 const serverLibraryEnabled = true;
 import { animateRibbons, coverDataFromScore, drawCover, drawMark, prepareCanvas, type CoverData } from './artwork';
 import { icon } from './icons';
@@ -114,10 +117,17 @@ function openLibraryMenu(
     items: convert(items),
     onEscape: () => overlay.requestClose(),
   });
-  // D12/D24: choose presentation once; the same centered dialog survives rotation.
-  overlay = openLibrarySheet(label, menu.element, anchor, () => menu.dispose());
+  // D48/D24: shared policy chooses once; resize only re-bounds this opening.
+  overlay = createMenuOverlay({ variant: "library-popover", title: label,
+    content: menu.element, anchor, behavior: { onClose: () => menu.dispose() },
+  });
+  overlay.element.querySelector("header")!.append(createIconButton({
+    label: t("close"), icon: libraryIcon("close"), onClick: () => overlay.requestClose(),
+  }));
+  overlay.open();
   menu.element.querySelector<HTMLElement>('[role^="menuitem"]')?.focus({ preventScroll: true });
 }
+// Tempo and bar navigation contain forms: retain centered D12 dialogs at every width.
 function openPlayerPopover(anchor:HTMLElement,content:HTMLElement,_align:'start'|'center', label:string) {
   return openLibrarySheet(label, content, anchor, undefined, "player");
 }
@@ -190,6 +200,7 @@ interface SongEntry {
   imported?: boolean;
   localOnly?: boolean;
   partNameOverrides?: Record<string, string>;
+  voiceNumbers?: Record<string, number>;
   savedConfig?: StoredSong['savedConfig'];
   clefOverrides?: StoredSong['clefOverrides'];
   percussion?: StoredSong['percussion'];
@@ -832,15 +843,14 @@ function openExportSheet(opener: HTMLElement | null) {
   // One row per part of the file: a part on several staves (a piano's two hands), even with its
   // staves made voices of their own, goes into the PDF whole, under its own name and clefs.
   const sources: { id: string; name: string; color: string; staves: boolean }[] = [];
-  score.parts.forEach((part, i) => {
+  score.parts.forEach((part) => {
     const id = part.sourceId ?? part.id;
-    if (!sources.some((s) => s.id === id)) sources.push({ id, name: part.sourceName ?? part.name, color: colorForPart(i, score.parts.length), staves: !!part.sourceId || !!part.staves });
+    if (!sources.some((s) => s.id === id)) sources.push({ id, name: part.sourceName ?? part.name, color: voiceColor(part, score), staves: !!part.sourceId || !!part.staves });
   });
   const rows = sources.map((source) => {
     const li = createPanelPart('li','export-row');
     li.style.setProperty('--c', source.color);
-    li.dataset.themeVoice = String(score.parts.findIndex(part => (part.sourceId ?? part.id) === source.id));
-    li.dataset.themeVoiceCount = String(score.parts.length);
+    li.dataset.part = score.parts.find(part => (part.sourceId ?? part.id) === source.id)!.id;
     const checkbox = createCheckbox({variant:'export-voice',checked:true,label:'',attrs:{'aria-label':source.name}});
     const check = checkbox.querySelector('input')!;
     const name = createInput({variant:'panel-export',value:source.name,attrs:{'aria-label':t('renameVoice')}});
@@ -958,7 +968,7 @@ function languageItems() {
 }
 document.querySelector<HTMLButtonElement>('#lib-menu-btn')!.addEventListener('click', (e) => {
   const anchor = e.currentTarget as HTMLElement;
-  openLibraryMenu(anchor, [...appearanceItems(), ...paperItems(anchor), ...languageItems(), ...introItems('library'), {label:t('accountArea'),icon:'users',onSelect:()=>{void openAccountArea(anchor);}}], t('language'));
+  openLibraryMenu(anchor, [...appearanceItems(), ...paperItems(anchor), ...languageItems(), ...introItems('library'), {label:t('accountArea'),icon:'users',onSelect:()=>{void openAccountArea(anchor);}}], t('librarySettings'));
 });
 
 /** The paper design's paper, to choose on this device (paper.ts). */
@@ -1508,7 +1518,15 @@ const fontsReady = canvasFontsReady();
 async function loadSongLocally(song: SongEntry, replaceAt?:number) {
   stopRenderLoop();
   const score = parseSong(song, await readSongText(song));
+  // Allocate from the stored import, before removal/display ordering. Splits get new IDs.
+  const baseNumbers = assignVoiceNumbers(score.parts, song.voiceNumbers);
   if (song.splitParts?.length) splitStaves(score, song.splitParts);
+  const numbers = assignVoiceNumbers(score.parts, baseNumbers);
+  if (JSON.stringify(numbers) !== JSON.stringify(song.voiceNumbers) && song.imported && !song.localOnly && editable() && !isOffline()) {
+    void saveVoiceNumbers(song.id, numbers).then(saved => {
+      if (saved) song.voiceNumbers = numbers;
+    }).catch(() => { /* Optional persistence must never interrupt rehearsal. */ });
+  }
   await fontsReady;
   if (song.partNameOverrides) {
     for (const part of score.parts) {
@@ -1560,7 +1578,7 @@ async function loadSongLocally(song: SongEntry, replaceAt?:number) {
   audioEngine.outputLatencyOffsetMs=outputLatencyMs;
   audioEngine.sharedClockReady=()=>!syncEnabled() || !!playerSession?.clock.usable;
   audioEngine.setDuckedVolume(duckVolume);
-  const partColor = (partId: string) => colorForPart(score.parts.findIndex((p) => p.id === partId), score.parts.length);
+  const partColor = (partId: string) => voiceColor(score.parts.find(p => p.id === partId)!, score);
   currentPartColor = partColor;
   // Shown first so the canvases have a real layout size when the views measure themselves.
   setViewMode('player');
@@ -1886,13 +1904,16 @@ document.addEventListener('visibilitychange', () => {
 // ---------------------------------------------------------------------------------------------
 
 function voiceRow(partId: string, name: string, color: string): HTMLLIElement {
-  return createVoiceRow({partId,name,color,onlyHint:t('onlyVoice',{name}),muteLabel:t('mute',{name}),soloLabel:t('soloVoice',{name}),
+  const voiceNumber = currentScore?.parts.find(p => p.id === partId)?.voiceNumber;
+  return createVoiceRow({partId,voiceNumber,name,color,onlyHint:t('onlyVoice',{name}),muteLabel:t('mute',{name}),soloLabel:t('soloVoice',{name}),
     moreLabel:currentSong?.imported && editable()?t('voiceMenu',{name}):undefined,moreIcon:libraryIcon('more')});
 }
 
 function buildVoiceControls(score: Score) {
-  voiceListEl.replaceChildren(...score.parts.map((p, i) => voiceRow(p.id, p.name, colorForPart(i, score.parts.length))));
-  chipsEl.replaceChildren(...score.parts.map((p,i)=>createVoiceChip({partId:p.id,name:p.name,color:colorForPart(i,score.parts.length),title:t('onlyVoice',{name:p.name})})));
+  voiceListEl.replaceChildren(...score.parts.map((p, i) => voiceRow(p.id, p.name, voiceColor(p, score))));
+  chipsEl.replaceChildren(...score.parts.map((p,i)=>createVoiceChip({partId:p.id,voiceNumber:p.voiceNumber,name:p.name,color:voiceColor(p,score),title:t('onlyVoice',{name:p.name})})));
+  document.querySelector('[data-voice-key]')?.remove();
+  overviewCanvas.parentElement!.after(createVoiceKey(t('voices'), score.parts.map(p => ({...p,color:voiceColor(p,score)})), id => { toggleTrueSolo(id); scheduleRender(); }));
   renderChipTitles();
 }
 
@@ -1922,6 +1943,8 @@ function applyMixToViews() {
     chip.classList.toggle('is-muted', state === 'muted');
     chip.classList.toggle('is-solo', state === 'solo');
     chip.classList.toggle('is-dimmed', dimmed.has(chip.dataset.part!));
+    const isolated = state !== 'muted' && currentScore!.parts.every(p => p.id === chip.dataset.part || partMix.get(p.id) === 'muted');
+    updateButton(chip as HTMLButtonElement, {pressed: isolated});
   });
   document.querySelectorAll<HTMLInputElement>('.duck-range').forEach((r) => (r.value = String(duckVolume)));
   document.querySelectorAll('.duck-value').forEach((o) => (o.textContent = `${Math.round(duckVolume * 100)}%`));
@@ -1960,7 +1983,9 @@ function toggleHearing(partId: string) {
 function renderChipTitles() {
   const singAlong = app.classList.contains('sing-along');
   document.querySelectorAll<HTMLElement>('.chip[data-part]').forEach((chip) => {
-    const name = chip.textContent ?? '';
+    const part = currentScore?.parts.find(part => part.id === chip.dataset.part);
+    if (!part) return;
+    const name = voiceLabel(part);
     chip.title = singAlong ? t('voiceOnOff', { name }) : t('onlyVoice', { name });
   });
 }
@@ -2003,11 +2028,13 @@ async function renameVoice(partId: string) {
   const setName = (name: string) => {
     part.name = name;
     document.querySelectorAll<HTMLElement>(`.voice-row[data-part="${CSS.escape(partId)}"] .voice-name`).forEach((el) => {
-      el.textContent = name;
+      const badge = el.querySelector('[data-voice-number]');
+      el.replaceChildren(...(badge ? [badge] : []), document.createTextNode(name));
       updateButton(el as HTMLButtonElement,{variant:name.length>13?'player-voice-name-long':'player-voice-name'});
     });
     document.querySelectorAll<HTMLElement>(`.chip[data-part="${CSS.escape(partId)}"]`).forEach((chip) => {
-      chip.replaceChildren(chip.firstChild!, document.createTextNode(name));
+      const dot = chip.querySelector('i'), badge = chip.querySelector('[data-voice-number]');
+      chip.replaceChildren(...(dot ? [dot] : []), ...(badge ? [badge] : []), document.createTextNode(name));
     });
   };
   // Applied immediately, rolled back on failure -- see applySongTitle.
@@ -2257,7 +2284,7 @@ function openMixerSheet(opener: HTMLElement) {
   if (!currentScore) return;
   const wrap=createPlayerPart('div','mixer-body');
   const list=createPlayerPart('ul','voice-list');
-  currentScore.parts.forEach((p,i)=>list.append(voiceRow(p.id,p.name,colorForPart(i,currentScore!.parts.length))));
+  currentScore.parts.forEach((p,i)=>list.append(voiceRow(p.id,p.name,voiceColor(p,currentScore!))));
   wrap.append(list,createMixerVolume({id:'duck-range-sheet',label:t('othersWhileSoloing')}),createButton({text:t('reset'),variant:'library-action',layout:'tw:w-full',attrs:{'data-action':'mix-reset'}}));
   openLibrarySheet(t('voices'),wrap,opener,undefined,'player');
   applyMixToViews();
@@ -2831,10 +2858,8 @@ voiceListEl.addEventListener('dblclick', (e) => {
 songTitleEl.addEventListener('dblclick', () => currentSong?.imported && editable() && void renameSong(currentSong));
 
 window.addEventListener('keydown', (e) => {
-  if (!app.classList.contains('mode-player') || document.querySelector('dialog[open], .overlay')) return;
-  const tag = (e.target as HTMLElement | null)?.tagName;
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.metaKey || e.ctrlKey || e.altKey) return;
-  if (e.code === 'Space') {
+  if (!app.classList.contains('mode-player') || !shouldHandlePlayerShortcut(e)) return;
+  if (e.code === 'Space' || e.key === ' ') {
     e.preventDefault();
     togglePlay();
   } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
@@ -3633,6 +3658,7 @@ async function runBootstrap() {
           format: s.format,
           imported: true,
           partNameOverrides: s.partNameOverrides,
+          voiceNumbers: s.voiceNumbers,
           savedConfig: s.savedConfig,
           clefOverrides: s.clefOverrides,
           percussion: s.percussion,

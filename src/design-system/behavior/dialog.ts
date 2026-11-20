@@ -1,9 +1,13 @@
 import { panelMotion } from "./panel";
+import { anchorPopover } from "./popover";
 
 /** Native showModal owns background inertness, including later portals and stacked modals. */
 export type CancelReason = "escape" | "outside" | "button";
 export interface DialogBehaviorOptions {
   opener?: Element | null;
+  /** D48 anchored presentation; fixed for this opening, including resize. */
+  anchor?: HTMLElement;
+  align?: "start" | "end" | "center";
   /** Historical sheet motion name aliases centered fade; no swipe dismissal. */
   motion?: "sheet" | "panel";
   initialFocus?: HTMLElement | (() => HTMLElement | null);
@@ -72,6 +76,12 @@ export function openDialog(
   const previousFocus =
     options.opener ??
     (pointerOpener?.isConnected ? pointerOpener : doc.activeElement);
+  // Save the containing regions before a refresh can detach the opener's subtree.
+  const anchorRegions: HTMLElement[] = [];
+  if (options.anchor) {
+    for (let region = options.anchor.parentElement; region; region = region.parentElement)
+      anchorRegions.push(region);
+  }
   pointerOpener = null;
   let closed = false,
     closing = false,
@@ -86,6 +96,7 @@ export function openDialog(
     closed = true;
     motion?.dispose();
     unbindViewport();
+    unplace?.();
     // Layers opened after an exit starts replace the closing layer; they are not its children.
     const index = stack.findIndex((entry) => entry.controller === controller);
     for (const child of (
@@ -96,17 +107,30 @@ export function openDialog(
     dialog.removeEventListener("close", onNativeClose);
     dialog.removeEventListener("pointerdown", onPointer);
     dialog.removeEventListener("keydown", onKey);
+    // A replacement dialog can open during this layer's exit animation. Its
+    // focused control must keep ownership through keyup (notably native Space).
+    const restoreFocus = stack.at(-1)?.dialog === dialog;
     if (dialog.open) dialog.close();
     if (index >= 0) stack.splice(index, 1);
     stackListeners.forEach(listener => listener());
     if (!stack.length) doc.body.style.overflow = previousOverflow;
     if (
+      restoreFocus &&
       previousFocus instanceof HTMLElement &&
       previousFocus.isConnected &&
+      (!options.anchor || previousFocus.getClientRects().length > 0) &&
       (!stack.length || stack.at(-1)!.dialog.contains(previousFocus)) &&
       !previousFocus.closest("[inert]")
     )
       previousFocus.focus({ preventScroll: true });
+    else if (restoreFocus && options.anchor) {
+      // Prefer the refreshed row/grid's first control; never leave focus on body after removal.
+      const scope = stack.at(-1)?.dialog;
+      const fallback = anchorRegions.filter(region => region.isConnected)
+        .flatMap(region => targets(region))
+        .find(target => !dialog.contains(target) && (!scope || scope.contains(target)));
+      fallback?.focus({ preventScroll: true });
+    }
     if (notify) options.onClose?.();
   };
   const controller: DialogController = {
@@ -201,7 +225,7 @@ export function openDialog(
   const viewport = view.visualViewport;
   let viewportFrame = 0;
   const fitViewport = () => {
-    if (dialog.dataset.dialogLayout === "fullscreen") return;
+    if (options.anchor || dialog.dataset.dialogLayout === "fullscreen") return;
     // Measured viewport geometry: inset the native centered dialog within the visible area.
     const gap = parseFloat(getComputedStyle(doc.documentElement).getPropertyValue("--ds-space-content")) || 0;
     const width = viewport?.width ?? view.innerWidth;
@@ -242,6 +266,7 @@ export function openDialog(
   if (!stack.length) previousOverflow = doc.body.style.overflow;
   dialog.showModal();
   fitViewport();
+  const unplace = options.anchor ? anchorPopover(dialog, options.anchor, options.align) : undefined;
   stack.push({ dialog, controller });
   stackListeners.forEach(listener => listener());
   motion?.enter();

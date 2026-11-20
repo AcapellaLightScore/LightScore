@@ -30,8 +30,8 @@ await page.route('**/api/admin/**',async route=>{
  else if(path===`users/${u.id}`)data={profile:u,roles:[{role:'sysadmin'}],sections:{audit:{items:[audit],nextCursor:null}}};
  else if(path===`pieces/${piece.id}`)data={profile:piece,sections:{versions:{items:[{id:'version',version_no:1,format:'musicxml',size:120,content_hash:'fixture-hash',created_by:u.id,created_at:instant}],nextCursor:null},originals:{items:[{id:'original',original_filename:'LangerDateiname'.repeat(16)+'.pdf',content_type:'application/pdf',size:120,sha256:'fixture-hash',created_at:instant}],nextCursor:null},audit:{items:[audit],nextCursor:null}}};
  else if(path===`ensembles/${e.id}`)data={profile:e,sections:{invitations:{items:[],nextCursor:null},pieces:{items:[],nextCursor:null},jobs:{items:[],nextCursor:null},audit:{items:[audit],nextCursor:null}}};
- else {let items=path==='users'?[u,...Array.from({length:11},(_,i)=>({...u,id:'singer-'+i,name:'Singer '+String(i).padStart(2,'0'),email:`singer${i}@test.com`,sysadmin:false}))]:path==='ensembles'?[e,...Array.from({length:11},(_,i)=>({...e,id:'choir-'+i,name:'Choir '+String(i).padStart(2,'0')}))]:path==='memberships'?[member,...Array.from({length:11},(_,i)=>({...member,id:'member-'+i,name:'Singer '+String(i).padStart(2,'0'),email:`singer${i}@test.com`,is_lead:false,manage_members:false,edit_music_pieces:false,ai_transcription:false}))]:path==='audit'?[audit]:path==='transcription/jobs'?[{id:'job-001',state:'completed',model:'fixture-model',created_at:instant}]:[];
- const q=url.searchParams.get('search');if(q)items=items.filter(r=>JSON.stringify(r).toLowerCase().includes(q.toLowerCase()));
+ else {let items=path==='users'?[u,...Array.from({length:11},(_,i)=>({...u,id:'singer-'+i,name:'Singer '+String(i).padStart(2,'0'),email:`singer${i}@test.com`,sysadmin:false}))]:path==='ensembles'?[e,...Array.from({length:11},(_,i)=>({...e,id:'choir-'+i,name:'Choir '+String(i).padStart(2,'0')}))]:path==='memberships'?[member,...Array.from({length:111},(_,i)=>({...member,id:'member-'+i,name:i===110?'Anna':'Singer '+String(i).padStart(2,'0'),email:`singer${i}@test.com`,is_lead:false,manage_members:false,edit_music_pieces:false,ai_transcription:false}))]:path==='audit'?[audit]:path==='transcription/jobs'?[{id:'job-001',state:'completed',model:'fixture-model',created_at:instant}]:[];
+ const q=url.searchParams.get('search');if(q)items=items.filter(r=>(path==='memberships'?`${r.email} ${r.name} ${r.ensemble_name}`:JSON.stringify(r)).toLowerCase().includes(q.toLowerCase()));
  const sort=url.searchParams.get('sort');if(sort)items.sort((a,b)=>String(a[sort]??a.id).localeCompare(String(b[sort]??b.id))*(url.searchParams.get('direction')==='desc'?-1:1));
  const offset=Number(url.searchParams.get('cursor')||0),limit=Number(url.searchParams.get('limit')||30);data={items:items.slice(offset,offset+limit),nextCursor:items.length>offset+limit?String(offset+limit):null};}
  await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({...data,timeZone:'UTC'})});
@@ -57,8 +57,30 @@ try{
  for(const theme of ['night','parchment'])for(const [width,height] of [[1440,900],[768,1024],[390,844]]){
  prefix=`${theme}-${width}`;if(process.env.ADMIN_RESPONSIVE_ONLY)continue;if(process.env.ADMIN_PARITY_ONLY&&prefix!==process.env.ADMIN_PARITY_ONLY)continue;await page.setViewportSize({width,height});
  await goto('users');await shot('users');await page.getByLabel('Rows per page',{exact:true}).selectOption('10');await ready();await page.getByRole('button',{name:'Next',exact:true}).click();await shot('users-page2');await page.getByRole('columnheader',{name:/Name/}).getByRole('button').click();await shot('users-sort');await page.getByRole('searchbox').fill('admin@test.com');await shot('users-search');await page.getByRole('link',{name:'Test Admin',exact:true}).click();await page.getByRole('heading',{level:1,name:'Test Admin'}).waitFor();await shot('user-detail');await contained('user-detail');
+ const userManagement=page.locator('[data-admin=management]'), userSearch=userManagement.getByRole('searchbox');
+ await userSearch.fill('Testchor');await ready();assert.equal(await userManagement.locator('tbody tr').count(),30);await shot('user-memberships-filtered');
+ await userSearch.fill('no-such-member');await ready();await userManagement.getByText('Nothing matches these filters.',{exact:true}).waitFor();await shot('user-memberships-empty');
+ await userManagement.locator('[data-admin=memberships]').getByRole('button',{name:'Clear filters',exact:true}).click();await ready();
+
  await page.getByRole('button',{name:'Revoke sysadmin…',exact:true}).click();await shot('sysadmin-confirm');await close();
  await goto('ensembles');await shot('ensembles');await page.getByLabel('Rows per page',{exact:true}).selectOption('10');await ready();await page.getByRole('button',{name:'Next',exact:true}).click();await shot('ensembles-page2');await page.getByRole('columnheader',{name:/Name/}).getByRole('button').click();await shot('ensembles-sort');await page.getByRole('searchbox').fill('Testchor');await shot('ensembles-search');await page.getByRole('link',{name:'Testchor',exact:true}).click();await page.getByRole('heading',{level:1,name:'Testchor'}).waitFor();await shot('members');await contained('ensemble-detail');const management=page.locator('[data-admin=management]');const memberTable=management.getByRole('region',{name:'Members',exact:true});await memberTable.getByLabel('Rows per page',{exact:true}).selectOption('10');await ready();await memberTable.getByRole('button',{name:'Next',exact:true}).click();await shot('members-page2');await memberTable.getByRole('columnheader',{name:/Name/}).getByRole('button').click();await shot('members-sort');
+ // D49: one debounced server request searches beyond the first page using list matching semantics.
+ const membershipRequests=[];const countMembership= req=>{if(req.url().includes('/api/admin/memberships?'))membershipRequests.push(new URL(req.url()));};page.on('request',countMembership);
+ const memberSearch=management.getByRole('searchbox');
+ await memberTable.getByRole('button',{name:'Next',exact:true}).click();await ready();
+ membershipRequests.length=0;
+ await memberSearch.pressSequentially('SINGER110@TEST.COM',{delay:5});await ready();
+ assert.equal(membershipRequests.length,1,'A burst of keystrokes sends one debounced request, no page crawl');
+ assert.equal(membershipRequests[0].searchParams.get('search'),'SINGER110@TEST.COM');
+ assert.equal(membershipRequests[0].searchParams.get('ensemble'),e.id);
+ assert.equal(membershipRequests[0].searchParams.has('cursor'),false,'Search resets the old page cursor');
+ assert.equal(membershipRequests[0].searchParams.get('limit'),'10');
+ assert.equal(await memberTable.locator('tbody tr').count(),1);assert.ok((await memberTable.innerText()).includes('singer110@test.com'));await shot('members-filtered-email');
+ await memberSearch.fill('Singer 10');await ready();assert.ok(await memberTable.locator('tbody tr').count()>0);await shot('members-filtered-name');
+ await memberSearch.fill('Anna Testchor');await ready();assert.equal(await memberTable.locator('tbody tr').count(),1);assert.ok((await memberTable.innerText()).includes('singer110@test.com'),'Name + ensemble match uses server concatenation');
+ await memberSearch.fill('Testchor');await ready();assert.equal(await memberTable.locator('tbody tr').count(),10,'Ensemble name matches members like the lists');
+ await memberSearch.fill('no-such-member');await ready();assert.equal(await memberTable.locator('tbody tr').count(),0);await memberTable.getByText('Nothing matches these filters.',{exact:true}).waitFor();await shot('members-search-empty');
+ await memberTable.getByRole('button',{name:'Clear filters',exact:true}).click();await ready();assert.equal(await memberSearch.inputValue(),'');assert.equal(membershipRequests.length,6,'Each settled search/clear requests one page only');page.off('request',countMembership);
  await memberTable.getByRole('button',{name:/^Edit permissions of /}).first().click();const c=page.locator('dialog[open][data-admin=confirm]');await c.getByLabel('Edit music pieces',{exact:true}).setChecked(false);await shot('membership-edit');await c.getByLabel('Reason',{exact:true}).fill('Support case: adjust permissions');await shot('reason-confirm');await close();
  await memberTable.getByRole('button',{name:/^Remove /}).first().click();await c.getByLabel('Reason',{exact:true}).fill('Support case: last lead');await c.getByRole('button',{name:'Remove member',exact:true}).click();await c.getByRole('alert').waitFor();await shot('last-lead');await close();
  await management.getByRole('button',{name:'Add member…',exact:true}).click();await shot('add-picker');await close();
@@ -70,6 +92,16 @@ try{
   for(const [kind,id] of [['users',u.id],['ensembles',e.id],['pieces',piece.id]]){
    await goto(kind+'/'+id);await page.locator(kind==='pieces'?'[data-admin=versions] tbody tr':'[data-admin=management] tbody tr').first().waitFor();await ready();await contained(kind+'-detail');
    if([390,768,1440].includes(width))await shot(kind+'-detail');
+   if(kind!=='pieces'){
+    const management=page.locator('[data-admin=management]'), search=management.getByRole('searchbox');
+    await search.fill(kind==='users'?'Testchor':'SINGER110@TEST.COM');
+    const expected=kind==='users'?30:1;
+    await page.waitForFunction(expected=>document.querySelectorAll('[data-admin=memberships] tbody tr').length===expected,expected);
+    await search.fill('no-such-member');
+    await management.getByText(lang==='en'?'Nothing matches these filters.':'Keine Treffer für diese Filter.',{exact:true}).waitFor();
+    assert.equal(await management.locator('tbody tr').count(),0);
+    await search.fill('');
+   }
    if(kind==='ensembles'){const add=page.locator('[data-admin=management]').getByRole('button',{name:lang==='en'?'Add member…':'Mitglied hinzufügen …',exact:true});await add.scrollIntoViewIfNeeded();const r=await add.boundingBox();assert.ok(r.x>=0&&r.x+r.width<=width+1,'Add member is reachable');}
    // A contained scroller must make the final actions reachable by ordinary scrolling.
    for(const wrap of await page.locator('[data-admin=table-wrap]').all()){

@@ -14,6 +14,8 @@
 
 /* Primitive palette; only semantic --ds-* roles are public. */
 :root {
+  --ds-voice-key-area: key;
+  --ds-voice-number-size: var(--ds-size-overview-word);
   --ds-space-chips: 46px;
   --ds-size-title-cap: 46px;
   --ds-width-library: 1240px;
@@ -484,6 +486,14 @@
   --ds-voice-3: var(--pigment-feedback-idea);
   --ds-voice-6: var(--pigment-feedback-wish);
   --ds-voice-8: var(--pigment-feedback-survey);
+  --ds-voice-9: #71781F;
+  --ds-voice-10: #FFC7FE;
+  --ds-voice-11: #0479B2;
+  --ds-voice-12: #C66A4C;
+  --ds-voice-13: #049886;
+  --ds-voice-14: #A6558A;
+  --ds-voice-15: #D1FCA1;
+  --ds-voice-16: #9B9D7A;
   --ds-component-action-hover: var(--ds-action-hover);
   --ds-domain-backdrop: rgb(8 6 14 / 0.45);
   --ds-note-secondary: rgb(21 17 26 / 0.55);
@@ -966,6 +976,14 @@
   --ds-voice-3: var(--pigment-feedback-idea-parchment);
   --ds-voice-6: var(--pigment-feedback-wish-parchment);
   --ds-voice-8: var(--pigment-feedback-survey-parchment);
+  --ds-voice-9: #734008;
+  --ds-voice-10: #062D71;
+  --ds-voice-11: #822948;
+  --ds-voice-12: #365E28;
+  --ds-voice-13: #5C083E;
+  --ds-voice-14: #886A80;
+  --ds-voice-15: #163D03;
+  --ds-voice-16: #4E4462;
   --ds-component-action-hover: var(--ds-ink-secondary);
   --ds-domain-backdrop: rgb(60 40 20 / 0.28);
   --ds-note-secondary: rgb(243 233 211 / 0.62);
@@ -1446,6 +1464,14 @@
   --ds-voice-3: var(--pigment-feedback-idea);
   --ds-voice-6: var(--pigment-feedback-wish);
   --ds-voice-8: var(--pigment-feedback-survey);
+  --ds-voice-9: #71781F;
+  --ds-voice-10: #FFC7FE;
+  --ds-voice-11: #0479B2;
+  --ds-voice-12: #C66A4C;
+  --ds-voice-13: #049886;
+  --ds-voice-14: #A6558A;
+  --ds-voice-15: #D1FCA1;
+  --ds-voice-16: #9B9D7A;
   --ds-component-action-hover: var(--ds-action-hover);
   --ds-domain-backdrop: rgb(8 6 14 / 0.45);
   --ds-note-secondary: rgb(21 17 26 / 0.55);
@@ -2271,30 +2297,30 @@
   --ds-library-tip-margin: var(--ds-space-heading) auto var(--ds-space-none);
   --ds-drop-veil-z-index: 5;
   --ds-player-grid-template-columns: 252px minmax(0, 1fr);
-  --ds-player-grid-template-rows: 60px minmax(0, 1fr) var(--ds-space-chips) 80px;
+  --ds-player-grid-template-rows: 60px minmax(0, 1fr) var(--ds-space-chips) 80px auto;
   --ds-player-grid-template-areas: 'top top'
     'side stage'
     'ov ov'
-    'tr tr';
+    'tr tr' 'key key';
   --ds-roll-staff-transform: translateZ(0);
-  --ds-player-tablet-rows: 60px minmax(0, 1fr) var(--ds-space-chips) var(--ds-control-target-touch) auto;
-  --ds-player-tablet-areas: 'top top' 'side stage' 'ov ov' 'info info' 'tr tr';
+  --ds-player-tablet-rows: 60px minmax(0, 1fr) var(--ds-space-chips) var(--ds-control-target-touch) auto auto;
+  --ds-player-tablet-areas: 'top top' 'side stage' 'ov ov' 'info info' 'tr tr' 'key key';
   --ds-player-grid-template-columns-phone: minmax(0, 1fr);
-  --ds-player-grid-template-rows-phone: calc(54px + var(--ds-safe-top)) var(--ds-control-height-touch) minmax(0, 1fr) var(--ds-space-toolbar-dense) var(--ds-control-height-touch) auto;
-  --ds-player-grid-template-areas-phone: 'top' 'chips' 'stage' 'ov' 'info' 'tr';
-  --ds-player-grid-template-rows-landscape: calc(var(--ds-space-chips) + var(--ds-safe-top)) minmax(0, 1fr) var(--ds-space-heading) var(--ds-control-target-touch) auto;
-  --ds-player-grid-template-areas-landscape: 'top' 'stage' 'ov' 'info' 'tr';
+  --ds-player-grid-template-rows-phone: calc(54px + var(--ds-safe-top)) var(--ds-control-height-touch) minmax(0, 1fr) var(--ds-space-toolbar-dense) var(--ds-control-height-touch) auto auto;
+  --ds-player-grid-template-areas-phone: 'top' 'chips' 'stage' 'ov' 'info' 'tr' 'key';
+  --ds-player-grid-template-rows-landscape: calc(var(--ds-space-chips) + var(--ds-safe-top)) minmax(0, 1fr) var(--ds-space-heading) var(--ds-control-target-touch) auto auto;
+  --ds-player-grid-template-areas-landscape: 'top' 'stage' 'ov' 'info' 'tr' 'key';
   --ds-before-after-animation-duration: 0.01ms;
   --ds-before-after-animation-iteration-count: 1;
   --ds-before-after-transition-duration: 0.01ms;
   --ds-following-overview-opacity: 0.4;
-  --ds-app-sing-along-player-grid-template-rows: 60px minmax(0, 1fr);
+  --ds-app-sing-along-player-grid-template-rows: 60px minmax(0, 1fr) auto;
   --ds-app-sing-along-player-grid-template-areas: 'top top'
-      'side stage';
-  --ds-sing-along-player-rows-phone: calc(54px + var(--ds-safe-top)) minmax(0, 1fr) auto;
-  --ds-sing-along-player-areas-phone: 'top' 'stage' 'chips';
-  --ds-sing-along-player-rows-landscape: calc(var(--ds-space-chips) + var(--ds-safe-top)) minmax(0, 1fr);
-  --ds-sing-along-player-areas-landscape: 'top' 'stage';
+      'side stage' 'key key';
+  --ds-sing-along-player-rows-phone: calc(54px + var(--ds-safe-top)) minmax(0, 1fr) auto auto;
+  --ds-sing-along-player-areas-phone: 'top' 'stage' 'chips' 'key';
+  --ds-sing-along-player-rows-landscape: calc(var(--ds-space-chips) + var(--ds-safe-top)) minmax(0, 1fr) auto;
+  --ds-sing-along-player-areas-landscape: 'top' 'stage' 'key';
   --ds-body-after-content: '';
   --ds-app-z-index: 1;
   --ds-landing-name-ink-animation: ink-float 7s ease-in-out 1.6s infinite;
