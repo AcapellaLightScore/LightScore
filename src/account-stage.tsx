@@ -1,8 +1,10 @@
+import { shellRecipe } from "./design-system/recipes/shell";
 import { useEffect, useRef, type ReactNode } from 'react';
 import type { Lang } from './i18n';
+import { ToggleGroup } from './design-system/react';
 
 export function LanguageToggle({ language, onChange }: { language: Lang; onChange: (language: Lang) => void }) {
-  return <div className="language-toggle" aria-label="Language / Sprache">{(['de', 'en'] as const).map((value, i) => <span key={value}>{i > 0 && <span aria-hidden="true"> · </span>}<button type="button" aria-pressed={language === value} onClick={() => { localStorage.setItem('ai-capella-lang', value); document.documentElement.lang = value; onChange(value); }}>{value.toUpperCase()}</button></span>)}</div>;
+  return <div className="language-toggle"><ToggleGroup variant="language" label="Language / Sprache" separator=" · " items={([{ value: 'de', label: 'DE' }, { value: 'en', label: 'EN' }])} value={language} onChange={value => { const next = value as Lang; localStorage.setItem('ai-capella-lang', next); document.documentElement.lang = next; onChange(next); }} /></div>;
 }
 export function AccountStage({ language, onLanguage, children }: { language: Lang; onLanguage: (language: Lang) => void; children: ReactNode }) {
   const name = useRef<HTMLHeadingElement>(null);
@@ -19,5 +21,5 @@ export function AccountStage({ language, onLanguage, children }: { language: Lan
     });
     return () => { stopped = true; stop(); };
   }, []);
-  return <main className="account-stage"><canvas ref={ribbons} className="account-ribbons" aria-hidden="true" /><LanguageToggle language={language} onChange={onLanguage} /><div className="account-content"><h1 ref={name} className="account-wordmark" aria-label="LightScore"><span className="ls-l">Light</span>Score</h1><div className="auth-shell">{children}</div></div></main>;
+  return <main className={shellRecipe("account-stage")}><canvas ref={ribbons} className={shellRecipe("account-ribbons")} aria-hidden="true" /><LanguageToggle language={language} onChange={onLanguage} /><div className={shellRecipe("account-content")}><h1 ref={name} className={shellRecipe("account-wordmark")} aria-label="LightScore"><span className={shellRecipe("ls-l")}>Light</span>Score</h1><div className={shellRecipe("auth-shell")}>{children}</div></div></main>;
 }

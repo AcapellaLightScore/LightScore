@@ -1,0 +1,41 @@
+/* Native number-input spin subparts cannot receive utility classes. */
+.ds-panel-bpm-input::-webkit-inner-spin-button,
+.ds-panel-measure-input::-webkit-inner-spin-button {
+  appearance: none;
+}
+/* Native WebKit range track cannot receive utility classes. */
+.ds-panel-range::-webkit-slider-runnable-track {
+  height: var(--ds-space-4);
+  border-radius: var(--ds-panel-section-marks-rmark-border-radius-14);
+  background: var(--ds-surface-hover);
+}
+/* Native WebKit range thumb cannot receive utility classes. */
+.ds-panel-range::-webkit-slider-thumb {
+  appearance: none;
+  width: var(--ds-space-18);
+  height: var(--ds-space-18);
+  margin-top: var(
+    --ds-panel-input-type-range-webkit-slider-thumb-margin-top-60
+  );
+  border-radius: var(--ds-panel-round-btn-border-radius-33);
+  background: var(--ds-ink);
+  box-shadow: var(--ds-range-thumb-shadow);
+}
+/* Native Firefox range track cannot receive utility classes. */
+.ds-panel-range::-moz-range-track {
+  height: var(--ds-space-4);
+  border-radius: var(--ds-panel-section-marks-rmark-border-radius-14);
+  background: var(--ds-surface-hover);
+}
+/* Native Firefox range thumb cannot receive utility classes. */
+.ds-panel-range::-moz-range-thumb {
+  width: var(--ds-space-18);
+  height: var(--ds-space-18);
+  border: 0;
+  border-radius: var(--ds-panel-round-btn-border-radius-33);
+  background: var(--ds-ink);
+}
+/* Native disclosure marker must retain the browser closed marker after the opt-in reset. */
+.ds-panel-export-summary {list-style:disclosure-closed inside;}
+/* Native disclosure marker follows the native details open state. */
+.ds-panel-export-voices[open] > .ds-panel-export-summary {list-style-type:disclosure-open;}

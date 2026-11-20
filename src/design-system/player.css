@@ -1,0 +1,52 @@
+/* Native generated/UA parts cannot be addressed by element utility classes. */
+/* Native pseudo-element styling retains the browser slider/decorative part. */
+.ds-player-volume::-webkit-slider-runnable-track {
+  height: var(--ds-player-utility-native-height-4px);
+  border-radius: var(
+    --ds-player-input-type-range-webkit-slider-runnable-track-border-radius-53
+  );
+  background: var(--ds-surface-hover);
+}
+/* Native pseudo-element styling retains the browser slider/decorative part. */
+.ds-player-volume::-webkit-slider-thumb {
+  appearance: none;
+  width: var(--ds-player-utility-native-width-18px);
+  height: var(--ds-player-utility-native-width-18px);
+  margin-top: var(
+    --ds-player-input-type-range-webkit-slider-thumb-margin-top-54
+  );
+  border-radius: var(--ds-player-live-dot-border-radius-9);
+  background: var(--ds-ink);
+  box-shadow: var(
+    --ds-player-input-type-range-webkit-slider-thumb-box-shadow-55
+  );
+}
+/* Native pseudo-element styling retains the browser slider/decorative part. */
+.ds-player-volume::-moz-range-track {
+  height: var(--ds-player-utility-native-height-4px);
+  border-radius: var(
+    --ds-player-input-type-range-webkit-slider-runnable-track-border-radius-53
+  );
+  background: var(--ds-surface-hover);
+}
+/* Native pseudo-element styling retains the browser slider/decorative part. */
+.ds-player-volume::-moz-range-thumb {
+  width: var(--ds-player-utility-native-width-18px);
+  height: var(--ds-player-utility-native-width-18px);
+  border: 0;
+  border-radius: var(--ds-player-live-dot-border-radius-9);
+  background: var(--ds-ink);
+}
+/* Native pseudo-element styling retains the browser slider/decorative part. */
+.ds-player-chips::-webkit-scrollbar {
+  display: none;
+}
+/* Native pseudo-element styling retains the browser slider/decorative part. */
+@container style(--ds-color-scheme: light) {
+/* Native thumb shadow follows the material color-scheme role. */
+:root:root .ds-player-volume::-webkit-slider-thumb {
+  box-shadow: var(
+    --ds-player-input-type-range-webkit-slider-thumb-box-shadow-156
+  );
+}
+}

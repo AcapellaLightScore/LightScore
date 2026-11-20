@@ -112,7 +112,7 @@ try {
   await shot(p, "title-empty-dark");
   await p.getByRole("button", { name: "Create ensemble", exact: true }).click();
   await p.getByLabel("Name", { exact: true }).fill("Browser Choir");
-  await p.locator(".domain-sheet button.primary").click();
+  await p.locator(".domain-sheet").getByRole("button", {name:"Create ensemble",exact:true}).click();
   await p.locator(".ens-switch").waitFor();
   const ensembles = (await request(p, "/ensembles")).body,
     e = ensembles[0].id;
@@ -176,7 +176,7 @@ try {
   await q.locator(".song-more").waitFor();
   await q.locator(".song-more").click();
   await q.getByText("Rename", { exact: true }).click();
-  await q.locator(".dialog input").fill("Renamed piece");
+  await q.getByRole("alertdialog").getByRole("textbox").fill("Renamed piece");
   await q.getByRole("button", { name: "Save", exact: true }).click();
   await p.keyboard.press("Escape");
   await p.getByText("Renamed piece", { exact: true }).first().waitFor();
@@ -198,7 +198,7 @@ try {
   });
   await q.locator(".song-more").click();
   await q.getByText("Rename", { exact: true }).click();
-  await q.locator(".dialog input").fill("Conflict name");
+  await q.getByRole("alertdialog").getByRole("textbox").fill("Conflict name");
   await q.getByRole("button", { name: "Save", exact: true }).click();
   await q
     .getByText("Someone else just changed this – reloaded.", { exact: true })
@@ -212,7 +212,7 @@ try {
   );
 
   await request(p, `/ensembles/${e}/members/${member.id}`, "PATCH", { manageMembers: true });
-  await captureDesign(browser, p, q, base, evidence);
+  if (process.env.P4C_FUNCTIONAL_ONLY !== "1") await captureDesign(browser, p, q, base, evidence);
   await request(p, `/ensembles/${e}/members/${member.id}`, "PATCH", { manageMembers: false });
   console.log("invitation errors");
   const emailC = `other-${suffix}@example.test`;

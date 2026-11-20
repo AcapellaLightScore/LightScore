@@ -1,8 +1,9 @@
+import { readTheme, subscribeTheme } from './design-system/theme';
 import type { Score } from './score';
 import { colorForPart } from './palette';
 import { withAlpha } from './theme';
 import { NIGHT_PAPER, paintPaper, STILL } from './paper';
-import { LOGO_DRAFT, PAPER_DESIGN, START_DRAFT, type LogoDraft } from './design';
+import { LOGO_DRAFT, type LogoDraft } from './design';
 import { drawLightRibbons, RibbonField } from './lightRibbons';
 import { broadNib, pointAlong, pointedPen, type Pt } from './pen';
 
@@ -80,13 +81,13 @@ export function fadeEnds(ctx: CanvasRenderingContext2D, w: number, h: number, o:
   ctx.globalCompositeOperation = 'destination-out';
   const span = o.x1 - o.x0;
   const fadeL = ctx.createLinearGradient(o.x0, 0, o.x0 + span * left, 0);
-  fadeL.addColorStop(0, 'rgba(0,0,0,1)');
-  fadeL.addColorStop(1, 'rgba(0,0,0,0)');
+  fadeL.addColorStop(0, readTheme().color('canvas-mask').rgba(1));
+  fadeL.addColorStop(1, readTheme().color('canvas-mask').rgba(0));
   ctx.fillStyle = fadeL;
   ctx.fillRect(0, 0, o.x0 + span * left, h);
   const fadeR = ctx.createLinearGradient(o.x1 - span * right, 0, o.x1, 0);
-  fadeR.addColorStop(0, 'rgba(0,0,0,0)');
-  fadeR.addColorStop(1, 'rgba(0,0,0,1)');
+  fadeR.addColorStop(0, readTheme().color('canvas-mask').rgba(0));
+  fadeR.addColorStop(1, readTheme().color('canvas-mask').rgba(1));
   ctx.fillStyle = fadeR;
   ctx.fillRect(o.x1 - span * right, 0, w, h);
   ctx.restore();
@@ -134,7 +135,7 @@ export function drawPenRibbons(ctx: CanvasRenderingContext2D, w: number, h: numb
       spot.addColorStop(1, withAlpha(color, 0));
       ctx.fillStyle = spot;
       ctx.fillRect(px - line * 5, py - line * 5, line * 10, line * 10);
-      ctx.fillStyle = 'rgba(255,250,242,0.9)';
+      ctx.fillStyle = readTheme().color('artwork-nib').rgba(0.9);
       ctx.beginPath();
       ctx.arc(px, py, Math.max(1.2, line * 0.6), 0, Math.PI * 2);
       ctx.fill();
@@ -169,7 +170,7 @@ export function drawMark(ctx: CanvasRenderingContext2D, size: number, withTile: 
   ctx.clearRect(0, 0, size, size);
   if (withTile) {
     const r = size * 0.24;
-    ctx.fillStyle = '#17151F';
+    ctx.fillStyle = readTheme().color('brand-mark-tile').css;
     ctx.beginPath();
     ctx.moveTo(r, 0);
     ctx.arcTo(size, 0, size, size, r);
@@ -180,7 +181,7 @@ export function drawMark(ctx: CanvasRenderingContext2D, size: number, withTile: 
   }
   const x0 = size * (withTile ? 0.19 : 0.06);
   const x1 = size * (withTile ? 0.81 : 0.94);
-  if (PAPER_DESIGN) {
+  if ((readTheme().material.surface === 'paper')) {
     // Written with a pointed pen, as in the title animation (and the app icon, public/icon-*.png).
     for (let i = 0; i < 4; i++) {
       const k = i - 1.5;
@@ -249,12 +250,12 @@ export function coverDataFromScore(score: Score): CoverData {
  * glows (top voice and bottom voice). Same piece, same picture, on every device.
  */
 export function drawCover(ctx: CanvasRenderingContext2D, w: number, h: number, data: CoverData) {
-  if (PAPER_DESIGN) {
+  if ((readTheme().material.surface === 'paper')) {
     drawPenCover(ctx, w, h, data);
     return;
   }
   const count = data.contours.length;
-  ctx.fillStyle = '#15131F';
+  ctx.fillStyle = readTheme().color('artwork-cover-ground').css;
   ctx.fillRect(0, 0, w, h);
   if (!count) return;
   const top = colorForPart(0, count);
@@ -354,8 +355,16 @@ export function animateRibbons(canvas: HTMLCanvasElement, layout: (w: number, h:
   let start = after ? Infinity : performance.now();
   void after?.then(() => (start = performance.now()));
   // The draft title screen: lines of light that answer the pointer (see lightRibbons.ts).
-  const field = START_DRAFT && !still && canvas.parentElement ? new RibbonField(canvas.parentElement, canvas) : null;
+  let field: RibbonField | null = null;
+  const syncField = () => {
+    const current = readTheme().titleDraft === 'current';
+    if (current && !still && canvas.parentElement) field ??= new RibbonField(canvas.parentElement, canvas);
+    else { field?.dispose(); field = null; }
+    return current;
+  };
+  syncField();
   const frame = (now: number) => {
+    const current = syncField();
     raf = still ? 0 : requestAnimationFrame(frame);
     // About 30 frames a second; the interactive draft runs at the full rate (strings, sparks).
     if (!still && (document.hidden || now - last < (field ? 0 : 32))) return;
@@ -366,12 +375,12 @@ export function animateRibbons(canvas: HTMLCanvasElement, layout: (w: number, h:
     // `pace` below 1: the lines are written, and sway, more slowly and calmly.
     const sec = still ? 99 : Math.max(0, (now - start) / 1000) * pace;
     const o = layout(prepared.w, prepared.h);
-    if (START_DRAFT) {
+    if (current) {
       const { progress, done } = swarm ? swarmWriting(o.voices, sec) : writing(LOGO_DRAFT, o.voices, sec);
       if (onFront && sec > 0 && sec < done) onFront(o.x0 + Math.max(...progress) * (o.x1 - o.x0));
       const lit = Math.min(1, Math.max(0, (sec - done) / 1.4));
       drawLightRibbons(prepared.ctx, prepared.w, prepared.h, 12 + sec, o, progress, lit * lit * (3 - 2 * lit), field, now / 1000);
-    } else if (PAPER_DESIGN) {
+    } else if ((readTheme().material.surface === 'paper')) {
       const { progress, done } = writing(LOGO_DRAFT, o.voices, sec);
       const glow = Math.min(1, Math.max(0, (sec - done) / 1.4));
       drawPenRibbons(prepared.ctx, prepared.w, prepared.h, 12 + sec, o, progress, glow * glow * (3 - 2 * glow), LOGO_DRAFT);
@@ -382,7 +391,9 @@ export function animateRibbons(canvas: HTMLCanvasElement, layout: (w: number, h:
     if (still) requestAnimationFrame(frame);
   };
   window.addEventListener('resize', onResize);
+  const stopTheme = subscribeTheme(onResize);
   return () => {
+    stopTheme();
     cancelAnimationFrame(raf);
     window.removeEventListener('resize', onResize);
     field?.dispose();

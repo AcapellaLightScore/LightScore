@@ -1,5 +1,7 @@
+import { shellRecipe } from "../design-system/recipes/shell";
 import { offlineAccountId, purgeAccount } from '../offline-store';
 import { AccountStage } from "../account-stage";
+import { Button, Status } from "../design-system/react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { pt, lang, type Lang } from "../i18n";
@@ -18,6 +20,7 @@ function Invitation() {
     values: Record<string, string> = {},
   ) => pt(key, values, language);
   async function accept() {
+    if (busy) return;
     setBusy(true);
     try {
       const r = await fetch(
@@ -86,12 +89,12 @@ function Invitation() {
     <AccountStage language={language} onLanguage={setLanguage}>
       {preview && (
         <>
-          <h2 className="invitation-title"><span className="invitation-kicker">{text("invitationTitle", { name: "" }).trim()}</span>{" "}<span>{preview.ensembleName}</span></h2>
+          <h2 className="invitation-title"><span className={shellRecipe("invitation-kicker")}>{text("invitationTitle", { name: "" }).trim()}</span>{" "}<span>{preview.ensembleName}</span></h2>
           <p>{text("invitedBy", { name: preview.inviter })}</p>
-          <p className="account-email">{preview.email}</p>
+          <p className={shellRecipe("account-email")}>{preview.email}</p>
         </>
       )}
-      <p role="status">
+      <Status variant="account">
         {state === "wrong_account"
           ? text("wrongAccount", {
               email: preview?.email ?? "",
@@ -110,40 +113,51 @@ function Invitation() {
                   : state
                     ? text("errorGeneric")
                     : ""}
-      </p>
+      </Status>
       {invalid ? (
         <>
           <p>{text("newInvitation")}</p>
           <a href="/app">LightScore</a>
         </>
       ) : state === "wrong_account" ? (
-        <button className="btn primary"
+        <Button variant="cta" intent="primary" layout="tw:mt-10" busy={busy}
           onClick={async () => {
+            if (busy) return;
+            setBusy(true);
             sessionStorage.removeItem("lightscore-invite");
-            const r = await fetch("/api/auth/sign-out", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: "{}",
-            });
-            if (r.ok) { const previous=offlineAccountId();if(previous)await purgeAccount(previous);authenticate("signin"); }
-            else setState("error");
+            try {
+              const r = await fetch("/api/auth/sign-out", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: "{}",
+              });
+              if (r.ok) {
+                const previous = offlineAccountId();
+                if (previous) await purgeAccount(previous);
+                authenticate("signin");
+              } else setState("error");
+            } catch {
+              setState("error");
+            } finally {
+              setBusy(false);
+            }
           }}
         >
           {text("switchAccount")}
-        </button>
+        </Button>
       ) : preview && user ? (
-        <button className="btn primary" disabled={busy} onClick={() => void accept()}>
+        <Button variant="cta" intent="primary" layout="tw:mt-10" busy={busy} onClick={() => void accept()}>
           {text("acceptInvitation")}
-        </button>
+        </Button>
       ) : (
         preview && (
           <div>
-            <button className="btn primary" onClick={() => authenticate("signup")}>
+            <Button variant="cta" intent="primary" layout="tw:mt-10" onClick={() => authenticate("signup")}>
               {text("createAccount")}
-            </button>
-            <nav className="account-links"><button onClick={() => authenticate("signin")}>
+            </Button>
+            <nav className={shellRecipe("account-links")}><Button variant="account-link" onClick={() => authenticate("signin")}>
               {text("signin")}
-            </button></nav>
+            </Button></nav>
           </div>
         )
       )}

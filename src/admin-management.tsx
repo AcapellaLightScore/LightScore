@@ -1,3 +1,4 @@
+import { Button, Checkbox, Field, Input, Textarea, ConfirmDialog, Status, Workspace } from "./design-system/react";
 import { useEffect, useMemo, useCallback, useRef, useState } from "react";
 import {
   AdminDataTable,
@@ -51,21 +52,17 @@ function PermissionFields({
 }) {
   const d = adminManagementMessages[language];
   return (
-    <div className="admin-permissions">
+    <Workspace part="permissions">
       {value.isLead && !invitation && <p>{d.leadHint}</p>}
       {permissionKeys
         .filter((k) => !invitation || k !== "isLead")
         .map((k) => (
-          <label key={k}>
-            <input
-              type="checkbox"
+          <Checkbox variant="permission" key={k} label={k === "isLead" ? d.lead : d[k]}
               checked={value[k]}
               onChange={(e) => onChange({ ...value, [k]: e.target.checked })}
             />
-            {k === "isLead" ? d.lead : d[k]}
-          </label>
         ))}
-    </div>
+    </Workspace>
   );
 }
 function MemberEditor({
@@ -89,7 +86,7 @@ function MemberEditor({
   return (
     <>
       <PermissionFields value={draft} onChange={setDraft} language={language} />
-      <button
+      <Button variant="dense" layout="tw:m-4"
         type="button"
         disabled={JSON.stringify(draft) === JSON.stringify(permissions(row))}
         onClick={() =>
@@ -104,8 +101,8 @@ function MemberEditor({
         }
       >
         {d.save}
-      </button>
-      <button
+      </Button>
+      <Button variant="dense" layout="tw:m-4"
         type="button"
         onClick={() =>
           onPending({
@@ -118,7 +115,7 @@ function MemberEditor({
         }
       >
         {d.remove}
-      </button>
+      </Button>
     </>
   );
 }
@@ -127,23 +124,18 @@ function Confirmation({
   language,
   onCancel,
   onConfirm,
+  opener,
 }: {
   pending: Pending;
   language: Lang;
   onCancel: () => void;
   onConfirm: (reason: string) => Promise<void>;
+  opener: HTMLElement | null;
 }) {
-  const dialog = useRef<HTMLDialogElement>(null),
-    [reason, setReason] = useState(""),
+  const [reason, setReason] = useState(""),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
-  const d = adminManagementMessages[language],
-    a = adminMessages[language];
-  useEffect(() => {
-    const el = dialog.current!;
-    el.showModal();
-    return () => el.close();
-  }, []);
+  const d = adminManagementMessages[language], a = adminMessages[language];
   const values = (p: Permissions) =>
     permissionKeys
       .map(
@@ -151,16 +143,8 @@ function Confirmation({
       )
       .join(" · ");
   return (
-    <dialog
-      ref={dialog}
-      className="admin-confirm admin-management-confirm"
-      aria-labelledby="admin-change-title"
-      onCancel={(e) => {
-        e.preventDefault();
-        if (!busy) onCancel();
-      }}
-      onKeyDown={(e) => e.stopPropagation()}
-    >
+    <ConfirmDialog open variant="admin-confirm" title={pending.title} data-admin="confirm"
+      behavior={{opener,busy,busyCancel:'block',outside:'ignore'}} onCancel={onCancel}>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -176,37 +160,33 @@ function Confirmation({
           }
         }}
       >
-        <h3 id="admin-change-title">{pending.title}</h3>
-        <p>{d.confirmNote}</p>
+        <Workspace as="p" part="paragraph">{d.confirmNote}</Workspace>
         {pending.before && (
-          <p>
+          <Workspace as="p" part="paragraph">
             {d.before}: {values(pending.before)}
-          </p>
+          </Workspace>
         )}
         {pending.after && (
-          <p>
+          <Workspace as="p" part="paragraph">
             {d.after}: {values(pending.after)}
-          </p>
+          </Workspace>
         )}
-        {error && <p role="alert">{error}</p>}
-        <label>
-          {d.reason}
-          <textarea
+        {error && <Status variant="admin" role="alert">{error}</Status>}
+        <Field variant="admin" label={d.reason}>{association => <Textarea {...association}
             autoFocus
             required
             maxLength={1000}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-          />
-        </label>
-        <button type="submit" disabled={busy || !reason.trim()}>
+          />}</Field>
+        <Button variant="dense" layout="tw:m-4" type="submit" busy={busy} disabled={!reason.trim()}>
           {d.confirm}
-        </button>
-        <button type="button" disabled={busy} onClick={onCancel}>
+        </Button>
+        <Button variant="dense" layout="tw:m-4" type="button" disabled={busy} onClick={onCancel}>
           {d.cancel}
-        </button>
+        </Button>
       </form>
-    </dialog>
+    </ConfirmDialog>
   );
 }
 export function AdminMembershipManagement({
@@ -233,6 +213,7 @@ export function AdminMembershipManagement({
     [email, setEmail] = useState(""),
     [status, setStatus] = useState("");
   const heading = useRef<HTMLHeadingElement>(null),
+    confirmOpener = useRef<HTMLElement | null>(null),
     focusAfterRemove = useRef(false);
   useEffect(() => {
     if (!pending && focusAfterRemove.current) {
@@ -241,6 +222,7 @@ export function AdminMembershipManagement({
     }
   }, [pending]);
   const queue = useCallback((p: Pending) => {
+    confirmOpener.current = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
     setStatus("");
     setPending(p);
   }, []);
@@ -272,13 +254,13 @@ export function AdminMembershipManagement({
         id: "choose",
         label: d.actions,
         cell: (r) => (
-          <button
+          <Button variant="dense" layout="tw:m-4"
             type="button"
             aria-pressed={chosen?.id === r.id}
             onClick={() => setChosen(r)}
           >
             {entity === "ensembles" ? d.chooseUser : d.chooseEnsemble}
-          </button>
+          </Button>
         ),
       },
     ],
@@ -287,16 +269,16 @@ export function AdminMembershipManagement({
   const ensemble = entity === "ensembles" ? profile.id : chosen?.id,
     user = entity === "users" ? profile.id : chosen?.id;
   return (
-    <section className="admin-management">
-      <h3 ref={heading} tabIndex={-1}>{a.memberships}</h3>
-      {status && <p role="status">{status}</p>}
+    <Workspace as="section" part="region" data-admin="management">
+      <Workspace as="h3" part="subheading" ref={heading} tabIndex={-1}>{a.memberships}</Workspace>
+      {status && <Status variant="admin">{status}</Status>}
       {entity === "users" && (
-        <div className="admin-role">
-          <h3>
+        <Workspace part="inset">
+          <Workspace as="h3" part="subheading">
             {d.sysadmin}: {sysadmin ? a.yes : a.no}
-          </h3>
-          <p>{d.verifiedNote}</p>
-          <button
+          </Workspace>
+          <Workspace as="p" part="paragraph">{d.verifiedNote}</Workspace>
+          <Button variant="dense" layout="tw:m-4"
             type="button"
             disabled={!profile.email_verified}
             onClick={() =>
@@ -309,10 +291,11 @@ export function AdminMembershipManagement({
             }
           >
             {sysadmin ? d.revoke : d.grant}
-          </button>
-        </div>
+          </Button>
+        </Workspace>
       )}
       <AdminDataTable
+        actionLayout="tw:m-4"
         path="memberships"
         caption={a.memberships}
         columns={columns}
@@ -322,7 +305,7 @@ export function AdminMembershipManagement({
         }
         revision={revision}
       />
-      <button
+      <Button variant="dense" layout="tw:m-4"
         type="button"
         onClick={() => {
           setAdding(!adding);
@@ -332,11 +315,12 @@ export function AdminMembershipManagement({
         }}
       >
         {adding ? d.cancel : d.add}
-      </button>
+      </Button>
       {adding && (
-        <div className="admin-add">
-          <h3>{entity === "ensembles" ? d.findUser : a.ensembles}</h3>
+        <Workspace part="inset" data-admin="add">
+          <Workspace as="h3" part="subheading">{entity === "ensembles" ? d.findUser : a.ensembles}</Workspace>
           <AdminDataTable
+            actionLayout="tw:m-4"
             path={entity === "ensembles" ? "users" : "ensembles"}
             caption={entity === "ensembles" ? d.chooseUser : a.ensembles}
             columns={pickerColumns}
@@ -344,16 +328,16 @@ export function AdminMembershipManagement({
           />
           {chosen && (
             <>
-              <p>
+              <Workspace as="p" part="paragraph">
                 {d.selected}: {chosen.name}
                 {chosen.email ? " · " + chosen.email : ""}
-              </p>
+              </Workspace>
               <PermissionFields
                 value={draft}
                 onChange={setDraft}
                 language={language}
               />
-              <button
+              <Button variant="dense" layout="tw:m-4"
                 type="button"
                 onClick={() =>
                   queue({
@@ -372,7 +356,7 @@ export function AdminMembershipManagement({
                 }
               >
                 {d.add}
-              </button>
+              </Button>
             </>
           )}
           {entity === "ensembles" && (
@@ -400,31 +384,29 @@ export function AdminMembershipManagement({
                 });
               }}
             >
-              <label>
-                {d.invitationEmail}
-                <input
+              <Field variant="admin" label={d.invitationEmail}>{association => <Input {...association}
                   type="email"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                />
-              </label>
-              <p>{d.inviteNote}</p>
+                />}</Field>
+              <Workspace as="p" part="paragraph">{d.inviteNote}</Workspace>
               <PermissionFields
                 value={draft}
                 onChange={setDraft}
                 language={language}
                 invitation
               />
-              <button type="submit" disabled={!email.trim()}>
+              <Button variant="dense" layout="tw:m-4" type="submit" disabled={!email.trim()}>
                 {d.invite}
-              </button>
+              </Button>
             </form>
           )}
-        </div>
+        </Workspace>
       )}
       {pending && (
         <Confirmation
+          opener={confirmOpener.current}
           pending={pending}
           language={language}
           onCancel={() => setPending(null)}
@@ -464,6 +446,6 @@ export function AdminMembershipManagement({
           }}
         />
       )}
-    </section>
+    </Workspace>
   );
 }

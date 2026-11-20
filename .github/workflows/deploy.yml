@@ -18,9 +18,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        task: [typecheck, unit, build, secrets, eval, migration, backup, docker]
+        task: [typecheck, unit, build, secrets, eval, migration, backup, docker, design-tokens]
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
@@ -52,6 +54,7 @@ jobs:
             unit) npm test && TZ=America/New_York npm test ;;
             build) npm run build ;;
             secrets) npm run check:secrets ;;
+            design-tokens) npm run check:design-tokens ;;
             eval) npm run eval:transcription -- --dry-run ;;
             migration) npm run build && npm run test:migration ;;
             backup) npm run test:backup ;;
@@ -109,6 +112,7 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
       - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser:renderer-themes
       - name: Start local S3 service
         run: docker run -d --name ci-seaweedfs -p 127.0.0.1:28333:8333 -v "$PWD/scripts/s3-local.json:/etc/seaweedfs/s3.json:ro" -v "$PWD/scripts/s3-local-master.toml:/etc/seaweedfs/master.toml:ro" chrislusf/seaweedfs:4.06@sha256:a064c6923daf4451c943cec2f437a67523d7792ee589089bc4d4c27a61d78dea server -master.volumeSizeLimitMB=64 -s3 -s3.config=/etc/seaweedfs/s3.json
       - name: Wait for S3

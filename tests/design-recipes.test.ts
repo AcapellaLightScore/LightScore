@@ -1,0 +1,243 @@
+// @vitest-environment node
+import { describe, it, expect } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
+import * as r from "../src/design-system/recipes";
+import { scanDesignFile } from "../scripts/check-design-tokens.mjs";
+describe("pure recipes", () => {
+  it("preserves close typography and native domain select treatment", () => {
+    expect(r.iconButtonRecipe({ variant: "transcription" })).toContain(
+      "tw:text-close",
+    );
+    expect(r.iconButtonRecipe({ variant: "admin-close" })).toContain(
+      "tw:text-admin-close",
+    );
+    expect(r.selectRecipe({ variant: "domain" })).toContain("tw:px-8");
+    expect(r.inputRecipe({ variant: "domain" })).toContain("tw:px-0");
+    expect(r.cardRecipe({ variant: "tour" })).toContain("tw:pt-14");
+  });
+  it("gives the notifier and specimens one recipe plus a named placement", () => {
+    expect(r.toastRecipe()).toContain("ds-reset");
+    expect(r.toastRecipe({ kind: "error" })).toContain("tw:bg-danger");
+    expect(r.toastPlacementRecipe()).toContain("ds-toast-placement");
+    expect(r.toastRecipe({ font: "auth" })).toContain("tw:font-auth-body");
+    expect(r.toastRecipe({ font: "auth" })).not.toContain("tw:font-body");
+  });
+  it("have zero guard violations, forbidden imports or runtime dependencies", () => {
+    for (const file of readdirSync("src/design-system/recipes")) {
+      const source = readFileSync("src/design-system/recipes/" + file, "utf8");
+      expect(
+        scanDesignFile("src/design-system/recipes/" + file, source),
+      ).toEqual([]);
+    }
+    expect(
+      scanDesignFile(
+        "src/design-system/recipes/bad.ts",
+        'export { createButton } from "../dom"',
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "recipe-boundary" }),
+      ]),
+    );
+  });
+  it("has exactly one shape, height, font, size and intent per button variant", () => {
+    for (const variant of r.buttonVariants)
+      for (const intent of [
+        "secondary",
+        "primary",
+        "danger",
+        "quiet",
+      ] as const) {
+        const classes = r.buttonRecipe({ variant, intent }).split(/\s+/);
+        if (variant.startsWith("panel-") || variant.startsWith("section-")) {
+          expect(classes).toContain("ds-panel-button");
+          expect(classes).toContain("tw:panel-inherit");
+          expect(classes).toContain("tw:focus-visible:outline-ink");
+          expect(classes.some(c => c.startsWith("tw:"))).toBe(true);
+          expect(new Set(classes).size).toBe(classes.length);
+          continue;
+        }
+        if (variant.startsWith("player-")) {
+          expect(classes.some(c => c.startsWith("tw:"))).toBe(true);
+          expect(classes).toContain("ds-player-button");
+          expect(new Set(classes).size).toBe(classes.length);
+          continue;
+        }
+        // Domain appearances share token utilities across React and DOM adapters.
+        if (["ensemble-switch", "ensemble-other", "account-delete-confirm", "device-link", "landing-link", "landing-aside", "library-open", "landing-mode", "paper-choice", "sound-prompt", "offline-update"].includes(variant)) {
+          expect(classes.some(c => c.startsWith("tw:"))).toBe(true);
+          expect(classes.some(c => /^(ds-navigation-|ds-account-|ds-library-)/.test(c))).toBe(true);
+          expect(new Set(classes).size).toBe(classes.length);
+          continue;
+        }
+        for (const group of [
+          /^tw:min-h-/,
+          /^tw:rounded-/,
+          /^tw:text-(button|label|body-small|body|small)$/,
+          /^tw:font-(control|auth-mono|auth-body)$/,
+          /^tw:bg-/,
+        ])
+          expect(classes.filter((c) => group.test(c))).toHaveLength(1);
+        expect(new Set(classes).size).toBe(classes.length);
+      }
+    expect(r.buttonRecipe()).toContain("tw:min-h-control-height");
+    expect(r.buttonRecipe({ variant: "pill" })).not.toContain(
+      "tw:rounded-card",
+    );
+    expect(r.buttonRecipe({ variant: "dense" })).toContain(
+      "tw:rounded-admin-control",
+    );
+  });
+  it("defines player appearances in token-backed utilities and reserves CSS for native parts", () => {
+    for (const part of ["header", "voice-row", "light", "chips", "transport", "view-group", "mixer-body", "switch-block"] as const) {
+      expect(r.playerPartRecipe(part)).toMatch(/(?:^|\s)tw:/);
+    }
+    for (const variant of ["player", "player-landscape", "player-zoom", "player-follow", "voice-more"] as const) {
+      expect(r.iconButtonRecipe({ variant })).toMatch(/(?:^|\s)tw:/);
+    }
+    expect(r.fieldRecipe({ variant: "player-volume" }).control).toMatch(/(?:^|\s)tw:/);
+    expect(r.switchRecipe({ variant: "player-preference" }).root).toMatch(/(?:^|\s)tw:/);
+    const css = readFileSync("src/design-system/player.css", "utf8");
+    expect(css).not.toMatch(/(?<![\w-])\d+(?:px|ms)\b|#[a-f\d]{3,8}\b/i);
+    const selectors = [...css.matchAll(/(?:^|})\s*(?:\/\*[\s\S]*?\*\/\s*)?([^{}]+)\{/g)]
+      .map(match => match[1].trim()).filter(selector => !selector.startsWith("@"));
+    expect(selectors.length).toBeGreaterThan(0);
+    for (const selector of selectors) expect(selector).toContain("::");
+    expect(r.playerGlyphRecipe("treble")).toContain("tw:font-font-music");
+  });
+  it("defines library/account appearance in utilities and keeps only generated decorations in CSS", () => {
+    for (const part of r.libraryParts) expect(r.libraryPartRecipe(part)).toMatch(/(?:^|\s)tw:/);
+    for (const part of r.accountParts) expect(r.accountPartRecipe(part)).toMatch(/(?:^|\s)tw:/);
+    for (const variant of ["library-prompt", "library-sheet", "library-popover"] as const)
+      for (const slot of Object.values(r.dialogRecipe({ variant }))) expect(slot).toMatch(/(?:^|\s)tw:/);
+    for (const slot of Object.values(r.menuRecipe({ variant: "library" }))) expect(slot).toMatch(/(?:^|\s)tw:/);
+    for (const file of ["library", "account"]) {
+      const css = readFileSync(`src/design-system/${file}.css`, "utf8");
+      expect(css).not.toMatch(/(?<![\w-])\d+(?:px|ms)\b|#[a-f\d]{3,8}\b/i);
+      const selectors = [...css.matchAll(/(?:^|})\s*(?:\/\*[\s\S]*?\*\/\s*)?([^{}]+)\{/g)]
+        .map(match => match[1].trim()).filter(selector => !selector.startsWith("@"));
+      for (const selector of selectors) expect(selector).toContain("::");
+    }
+  });
+  it("makes ruled and boxed properties exclusive and exposes stable slots", () => {
+    for (const variant of r.fieldVariants) {
+      const slots = r.fieldRecipe({ variant });
+      expect(Object.keys(slots)).toEqual([
+        "root",
+        "label",
+        "control",
+        "hint",
+        "error",
+      ]);
+      expect(slots.control.includes("tw:rounded-card")).toBe(
+        variant === "boxed" || variant === "library-prompt" || variant === "panel-measure" || variant === "panel-export",
+      );
+      expect(slots.control.includes("tw:rounded-field")).toBe(
+        variant === "panel-offset" || (variant !== "boxed" && variant !== "library-prompt" && variant !== "player-volume" && !variant.startsWith("panel-")),
+      );
+    }
+  });
+});
+
+describe("every recipe property is exclusive within a state and breakpoint", () => {
+  it("checks every named variant and every part, including sheet max-height", () => {
+    const cases: unknown[] = [];
+    for (const variant of r.buttonVariants)
+      for (const intent of ["primary", "secondary", "danger", "quiet"] as const)
+        for (const pressed of [true, false])
+          cases.push(r.buttonRecipe({ variant, intent, pressed }));
+    for (const variant of r.iconButtonVariants)
+      cases.push(r.iconButtonRecipe({ variant }));
+    for (const variant of r.fieldVariants)
+      for (const invalid of [true, false])
+        cases.push(
+          r.fieldRecipe({ variant, invalid }),
+          r.inputRecipe({ variant, invalid }),
+          r.selectRecipe({ variant, invalid }),
+          r.textareaRecipe({ variant, invalid }),
+        );
+    for (const variant of r.checkboxVariants)
+      cases.push(r.checkboxRecipe({ variant }));
+    for (const variant of r.switchVariants)
+      for (const checked of [true, false])
+        cases.push(r.switchRecipe({ variant, checked }));
+    for (const variant of r.cardVariants) cases.push(r.cardRecipe({ variant }));
+    for (const intent of r.feedbackIntents)
+      cases.push(r.badgeRecipe({ intent }), r.statusRecipe({ intent }));
+    for (const variant of r.toggleGroupVariants)
+      cases.push(r.toggleGroupRecipe({ variant }));
+    for (const variant of r.emptyStateVariants)
+      cases.push(r.emptyStateRecipe({ variant }));
+    for (const variant of r.tableVariants)
+      cases.push(r.tableRecipe({ variant }));
+    for (const variant of r.dialogVariants)
+      cases.push(r.dialogRecipe({ variant }));
+    for (const variant of r.menuVariants) cases.push(r.menuRecipe({ variant }));
+    for (const kind of r.toastVariants) cases.push(r.toastRecipe({ kind }));
+    cases.push(r.toolbarRecipe(), r.loadingRecipe(), r.toastPlacementRecipe());
+    const check = (value: unknown) => {
+      if (typeof value === "function") {
+        check(value(true));
+        check(value(false));
+        return;
+      }
+      if (typeof value === "object" && value) {
+        Object.values(value).forEach(check);
+        return;
+      }
+      if (typeof value !== "string") return;
+      const seen = new Map<string, string>();
+      for (const cls of value.split(/\s+/).filter(Boolean)) {
+        const bits = cls.split(":");
+        const utility = bits.pop()!;
+        const state = bits.join(":");
+        const group =
+          /^(max-h|min-h|max-w|min-w|h|w|bg|leading|opacity)-/.exec(
+            utility,
+          )?.[1] ??
+          (/^font-(control|auth-mono|auth-body|auth-display|body|display|close)$/.test(
+            utility,
+          )
+            ? "font-family"
+            : undefined) ??
+          (/^font-(label|regular|emphasis|close-light)$/.test(utility)
+            ? "font-weight"
+            : undefined) ??
+          (/^(block|inline-block|flex|inline-flex|grid|inline-grid|hidden)$/.test(
+            utility,
+          )
+            ? "display"
+            : undefined);
+        if (!group) continue;
+        const key = state + ":" + group;
+        expect(seen.get(key), value + " duplicates " + key).toBeUndefined();
+        seen.set(key, cls);
+      }
+    };
+    cases.forEach(check);
+    expect(r.dialogRecipe({ variant: "sheet" }).panel).not.toContain(
+      "tw:max-h-dialog",
+    );
+  });
+  it("documents intentional aliases and exposes finite placement and alignment roles", () => {
+    expect(r.menuRecipe({ variant: "member" }).root).toContain("tw:min-w-menu-member");
+    expect(r.menuRecipe({ variant: "job" }).root).toContain("tw:min-w-menu-job");
+    expect(r.dialogRecipe({ variant: "confirm" })).toEqual(
+      r.dialogRecipe({ variant: "dialog" }),
+    );
+    expect(r.tableRecipe({ variant: "scroll" })).toEqual(
+      r.tableRecipe({ variant: "metrics" }),
+    );
+    expect(r.fieldRecipe({ variant: "ruled" })).toEqual(
+      r.fieldRecipe({ variant: "transcription" }),
+    );
+    expect(r.layoutClasses).toEqual(
+      expect.arrayContaining([
+        "tw:col-span-full",
+        "tw:self-end",
+        "tw:max-panel:hidden",
+        "tw:order-first",
+      ]),
+    );
+  });
+});
