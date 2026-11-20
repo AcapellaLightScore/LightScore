@@ -200,9 +200,10 @@ try {
   await q.getByText("Rename", { exact: true }).click();
   await q.getByRole("alertdialog").getByRole("textbox").fill("Conflict name");
   await q.getByRole("button", { name: "Save", exact: true }).click();
-  await q
-    .getByText("Someone else just changed this – reloaded.", { exact: true })
-    .waitFor();
+  // D15: the operation error remains visible until the singer dismisses it.
+  const conflictNotice = q.locator('#toast[role="alert"]').filter({hasText: 'Someone else just changed this – reloaded.'});
+  await conflictNotice.waitFor();
+  await conflictNotice.getByRole('button', {name: 'Close', exact: true}).click();
   await q.unrouteAll();
   console.log("conflict passed");
   assert.equal(
@@ -247,8 +248,12 @@ try {
   await p.getByText("Account and devices", { exact: true }).click();
   await p.getByText(/· This device$/).waitFor();
   const shared=p.getByLabel('This device is shared (24 h offline)',{exact:true});
-  assert.equal(await shared.isChecked(),false);await shared.check();
-  assert.equal(await p.evaluate(()=>localStorage.getItem('lightscore-shared-device')),'1');await shared.uncheck();
+  assert.equal(await shared.getAttribute('role'),'switch');
+  assert.equal(await shared.isChecked(),false);await shared.focus();await shared.press('Space');
+  assert.equal(await shared.isChecked(),true);
+  assert.equal(await p.evaluate(()=>localStorage.getItem('lightscore-shared-device')),'1');await shared.press('Space');
+  assert.equal(await shared.isChecked(),false);
+  assert.equal(await p.evaluate(()=>localStorage.getItem('lightscore-shared-device')),'0');
   await request(p, `/ensembles/${e}/members/${member.id}`, "DELETE");
   await q
     .getByText("You are no longer a member of Browser Choir.", { exact: true })

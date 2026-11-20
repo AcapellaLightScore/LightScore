@@ -1,4 +1,5 @@
-import { controlNoteRecipe, ensemblePanelRecipe, sheetHandleRecipe } from "./design-system/recipes/shell";
+import { bindRowMenu } from "./design-system/behavior";
+import { controlNoteRecipe, ensemblePanelRecipe } from "./design-system/recipes/shell";
 import { randomId } from "./uuid";
 import { api } from "./domain-client";
 import {
@@ -14,7 +15,9 @@ import {
   createInput,
   createSelect,
   createField,
+  createStatus,
   createSwitch,
+  createCheckbox,
   updateSwitch,
   createSheet,
   createIconButton,
@@ -80,15 +83,11 @@ function openSheet(
     },
   });
   const head = sheet.element.querySelector("header")!;
-  const grab = element("span");
-  grab.className = sheetHandleRecipe();
-  grab.setAttribute("aria-hidden", "true");
   const close = createIconButton({
     label: t("close"),
     onClick: () => sheet.requestClose(),
   });
   close.innerHTML = icon("close");
-  head.prepend(grab);
   head.append(close);
   sheet.open();
   return sheet;
@@ -115,6 +114,7 @@ function confirmDialog(options: {
       }),
     );
     const dialog = createConfirmDialog({
+      destructive: options.danger,
       title: options.title,
       body: options.body,
       actions,
@@ -126,11 +126,24 @@ function confirmDialog(options: {
     dialog.open();
   });
 }
-async function action(fn: () => Promise<void>) {
+const panelErrors = new WeakMap<HTMLElement, HTMLElement>();
+async function action(panel: HTMLElement, fn: () => Promise<void>) {
   try {
     await fn();
+    panelErrors.get(panel)?.remove();
+    panelErrors.delete(panel);
   } catch (e) {
-    toast(domainError((e as Error).message), "error");
+    const message = domainError((e as Error).message);
+    // The operation may finish after the user has closed its panel.
+    if (!panel.isConnected) { toast(message, "error"); return; }
+    let feedback = panelErrors.get(panel);
+    if (!feedback) {
+      feedback = createStatus({intent:"error",text:"",attrs:{role:"alert"}});
+      panelErrors.set(panel, feedback);
+    }
+    feedback.textContent = message;
+    // A failed operation stays beside the active work until a successful retry.
+    if (!panel.contains(feedback)) panel.prepend(feedback);
   }
 }
 export function createEnsembleSheet(done: (id: string) => void, opener?: HTMLElement) {
@@ -157,7 +170,7 @@ export function createEnsembleSheet(done: (id: string) => void, opener?: HTMLEle
     e.preventDefault();
     if (save.getAttribute("aria-disabled") === "true") return;
     updateButton(save, { busy: true });
-    void action(async () => {
+    void action(body, async () => {
       try {
         const result = await api("/ensembles", "POST", {
           name: name.value,
@@ -217,7 +230,7 @@ export async function membersSheet(id: string, anchor?: HTMLElement) {
             details.open = false;
             summary.focus();
             const at = [...body.querySelectorAll(".row-menu summary")].indexOf(summary);
-            void action(async () => {
+            void action(body, async () => {
               if (await item.run() === false) return;
               await render();
               const triggers = body.querySelectorAll<HTMLElement>(".row-menu summary");
@@ -233,6 +246,7 @@ export async function membersSheet(id: string, anchor?: HTMLElement) {
       menus.push(menu.dispose);
       details.append(menu.element);
       row.append(details);
+      menus.push(bindRowMenu(details, menu.element));
       details.addEventListener("toggle", () =>
         summary.setAttribute("aria-expanded", String(details.open)),
       );
@@ -248,7 +262,7 @@ export async function membersSheet(id: string, anchor?: HTMLElement) {
           const items =
             menu.element.querySelectorAll<HTMLElement>("[role=menuitem]");
           (e.key === "ArrowUp" ? items[items.length - 1] : items[0])?.focus();
-        } else if (e.key === "Escape") {
+        } else if (e.key === "Escape" && details.open) {
           e.preventDefault();
           e.stopPropagation();
           details.open = false;
@@ -326,7 +340,7 @@ export async function membersSheet(id: string, anchor?: HTMLElement) {
           if (isLead) {
             const input = capabilitySwitch(caps, pt(cap), m.capabilities[cap]);
             input.onchange = () =>
-              void action(async () => {
+              void action(body, async () => {
                 const checked = input.checked;
                 const label = input.parentElement!;
                 updateSwitch(label, {variant:"capability", label:pt(cap), checked, busy:true});
@@ -427,7 +441,12 @@ export async function membersSheet(id: string, anchor?: HTMLElement) {
     caps.className = ensemblePanelRecipe().capabilities;
     if (isLead)
       for (const cap of capabilities)
-        grants[cap] = capabilitySwitch(caps, pt(cap));
+        {
+          // Invitation choices are submitted together; member settings above apply immediately.
+          const choice = createCheckbox({label: pt(cap)});
+          caps.append(choice);
+          grants[cap] = choice.querySelector<HTMLInputElement>("input")!;
+        }
     form.append(caps);
     const send = createButton({
       text: pt("invite"),
@@ -440,7 +459,7 @@ export async function membersSheet(id: string, anchor?: HTMLElement) {
       e.preventDefault();
       if (send.getAttribute("aria-disabled") === "true") return;
       updateButton(send, { busy: true });
-      void action(async () => {
+      void action(body, async () => {
         try {
           await api(`${base}/invitations`, "POST", {
             email: email.value,

@@ -9,11 +9,8 @@ describe("pure recipes", () => {
     expect(r.iconButtonRecipe({ variant: "transcription" })).toContain(
       "tw:text-close",
     );
-    expect(r.iconButtonRecipe({ variant: "admin-close" })).toContain(
-      "tw:text-admin-close",
-    );
-    expect(r.selectRecipe({ variant: "domain" })).toContain("tw:px-small");
-    expect(r.inputRecipe({ variant: "domain" })).toContain("tw:px-flush");
+    expect(r.selectRecipe({ variant: "domain" })).toContain("tw:border-b-(length:--ds-stroke-thin)");
+    expect(r.inputRecipe({ variant: "domain" })).toContain("tw:font-control");
     expect(r.cardRecipe({ variant: "tour" })).toContain("tw:pt-row");
   });
   it("gives the notifier and specimens one recipe plus a named placement", () => {
@@ -81,13 +78,17 @@ describe("pure recipes", () => {
           expect(classes.filter((c) => group.test(c))).toHaveLength(1);
         expect(new Set(classes).size).toBe(classes.length);
       }
-    expect(r.buttonRecipe()).toContain("tw:min-h-control-height");
-    expect(r.buttonRecipe({ variant: "pill" })).not.toContain(
-      "tw:rounded-card",
-    );
-    expect(r.buttonRecipe({ variant: "dense" })).toContain(
-      "tw:rounded-control-dense",
-    );
+    expect(r.buttonRecipe()).toContain("tw:min-h-control-height-touch");
+    for (const size of r.buttonSizes) {
+      expect(r.buttonRecipe({size})).toContain("tw:rounded-card");
+      expect(r.buttonRecipe({size})).toContain(size === "compact" ? "tw:min-h-control-height-compact" : "tw:min-h-control-height-touch");
+    }
+    expect(r.buttonRecipe({size:"full-width"})).toContain("tw:w-full");
+    for (const retired of ["cta", "pill", "tour", "dense", "dense-sort", "link", "compact", "job-action", "tour-link", "hint-link", "transcription-link", "hint", "account-delete-confirm"]) expect(r.buttonVariants).not.toContain(retired);
+    expect(r.fieldVariants).not.toContain("boxed");
+    expect(r.fieldRecipe().control).toContain("tw:border-0");
+    expect(r.fieldRecipe().control).toContain("tw:border-b-(length:--ds-stroke-thin)");
+    expect(r.buttonRecipe({size:"compact",intent:"danger"})).toContain("tw:bg-danger");
   });
   it("defines player appearances in token-backed utilities and reserves CSS for native parts", () => {
     for (const part of ["header", "voice-row", "light", "chips", "transport", "view-group", "mixer-body", "switch-block"] as const) {
@@ -133,12 +134,13 @@ describe("pure recipes", () => {
         "hint",
         "error",
       ]);
-      expect(slots.control.includes("tw:rounded-card")).toBe(
-        variant === "boxed" || variant === "library-prompt" || variant === "panel-measure" || variant === "panel-export",
-      );
-      expect(slots.control.includes("tw:rounded-field")).toBe(
-        variant === "panel-offset" || (variant !== "boxed" && variant !== "library-prompt" && variant !== "player-volume" && !variant.startsWith("panel-")),
-      );
+      if (["search", "numeric", "repeated-name"].includes(variant)) {
+        expect(slots.control).toContain("tw:rounded-card");
+        expect(slots.control).not.toContain("tw:border-0");
+      } else if (!["player-volume", "library-search"].includes(variant) && !variant.startsWith("panel-")) {
+        expect(slots.control).toContain("tw:rounded-field");
+        expect(slots.control).toContain("tw:border-0");
+      }
     }
   });
 });
@@ -149,7 +151,7 @@ describe("every recipe property is exclusive within a state and breakpoint", () 
     for (const variant of r.buttonVariants)
       for (const intent of ["primary", "secondary", "danger", "quiet"] as const)
         for (const pressed of [true, false])
-          cases.push(r.buttonRecipe({ variant, intent, pressed }));
+          for (const size of r.buttonSizes) cases.push(r.buttonRecipe({ variant, intent, pressed, size }));
     for (const variant of r.iconButtonVariants)
       cases.push(r.iconButtonRecipe({ variant }));
     for (const variant of r.fieldVariants)
@@ -229,9 +231,11 @@ describe("every recipe property is exclusive within a state and breakpoint", () 
     expect(r.dialogRecipe({ variant: "confirm" })).toEqual(
       r.dialogRecipe({ variant: "dialog" }),
     );
-    expect(r.tableRecipe({ variant: "scroll" })).toEqual(
-      r.tableRecipe({ variant: "metrics" }),
-    );
+    // D16 A: metrics keep their own narrower contained table; scroll keeps record columns.
+    expect(r.tableRecipe({ variant: "metrics" }).root).not.toContain("tw:min-w-");
+    expect(r.tableRecipe({ variant: "metrics" }).cell).toContain("tw:whitespace-nowrap");
+    expect(r.tableRecipe({ variant: "scroll" }).root).toContain("tw:min-w-(--ds-admin-records-width)");
+    expect(r.tableRecipe({ variant: "metrics" }).root).not.toContain("tw:max-account:");
     expect(r.fieldRecipe({ variant: "ruled" })).toEqual(
       r.fieldRecipe({ variant: "transcription" }),
     );
@@ -266,10 +270,10 @@ it('emits every authored utility through the real app compiler, excluding only s
   expect(await compileDesignUtilities(['tw:focus-visible:outline-offset-compact','tw:z-definitely-absent'])).toEqual([null,null]);
 },15000);
 
-it('emits the standard, admin and player focus offsets from their authored spacing roles', async () => {
+it('emits the standard and player focus offsets from their authored spacing roles', async () => {
   const {compileDesignUtilities}=await import('../scripts/check-design-utilities.mjs');
   const {default:postcss}=await import('postcss');
-  const cases: [r.ButtonOptions['variant'],string][]=[['standard','compact'],['dense','tight'],['player-play','micro']];
+  const cases: [r.ButtonOptions['variant'],string][]=[['standard','compact'],['player-play','micro']];
   for(const [variant,scale] of cases) {
     const candidates=r.buttonRecipe({variant}).split(/\s+/).filter(candidate=>candidate.includes('outline-offset'));
     expect(candidates.length,variant).toBeGreaterThan(0);
@@ -286,4 +290,20 @@ it('keeps player domain compositions equivalent to their shared app controls',()
   expect(r.voiceRowRecipe().name).toBe(r.buttonRecipe({variant:'player-voice-name'}));
   expect(r.voiceRowRecipe().more).toBe(r.iconButtonRecipe({variant:'voice-more'}));
   expect(r.voiceChipRecipe()).toBe(r.buttonRecipe({variant:'player-chip'}));
+});
+
+
+it('keeps errors adjacent, colors invalid writing lines, and restores compact touch targets',()=>{
+  expect(r.fieldRecipe({variant:'ruled-account',invalid:true}).control).toContain('tw:border-danger');
+  expect(r.fieldRecipe({variant:'ruled-account',invalid:true}).error).not.toContain('tw:text-center');
+  expect(r.statusRecipe({variant:'admin',intent:'error'})).toContain('tw:text-danger');
+  expect(r.statusRecipe({variant:'admin',intent:'success'})).toContain('tw:text-success');
+  expect(r.buttonRecipe({size:'compact'})).toContain('tw:touch:min-h-control-target-touch');
+  expect(r.buttonRecipe({size:'compact'})).toContain('tw:touch:min-w-control-target-touch');
+  expect(r.checkboxRecipe({density:'compact'}).root).toContain('tw:touch:min-h-control-target-touch');
+  expect(r.switchRecipe({variant:'shared-device'}).root).not.toContain('tw:hidden');
+  expect(r.emptyStateRecipe({variant:'jobs-hidden'}).root).toContain('tw:hidden');
+  expect(r.emptyStateRecipe({variant:'standard'}).title).toBe(r.emptyStateRecipe({variant:'compact'}).title);
+  expect(r.cardRecipe({variant:'tour'})).toContain('tw:bg-surface');
+  expect(r.cardRecipe({variant:'tour'})).toContain('tw:text-ink');
 });

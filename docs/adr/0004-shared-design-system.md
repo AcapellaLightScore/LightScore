@@ -1,13 +1,13 @@
 # 0004: Shared design system with one CSS-variable source
 
-Status: accepted for AICAP-28; browser support decision D19 remains open.
+Status: accepted for AICAP-28, including the applied AICAP-28 foundation and component decisions below.
 
 ## Context
 
 Production has independently authored CSS, canvas palettes, fonts and scoped admin/auth/
 transcription values. CSS import order differs between the SSR root and lazy client, and
 three appearance bootstraps can disagree. The owner wants Tailwind and reusable components
-with one theme source, while visual normalization awaits owner decisions.
+with one theme source, with explicit owner decisions governing normalization of the foundation families.
 
 ## Decision
 
@@ -19,8 +19,7 @@ the existing finalized service-worker manifest continues to cover CSS and fonts.
 
 `tokens.css` owns primitives, complete semantic mappings for all retained themes, type
 presets, breakpoint definitions and the inline Tailwind adapter.
-Reset the default Tailwind token namespaces; utilities expose semantic names. Preserve
-existing differences as distinct roles until the owner decides. The guard baseline is zero and cannot grow.
+Reset the default Tailwind token namespaces; utilities expose semantic names. Retain role APIs, but collapse decided accent, paper and gold aliases into their shared families. The guard baseline is zero and cannot grow.
 
 A self-contained JavaScript resolver is used by pre-paint SSR, offline startup, and the
 client controller. Inject the same raw source rather than serializing compiled functions.
@@ -55,10 +54,55 @@ boundary. Their source templates contain no parallel palette. Fixed raster artwo
 asset data. The test-only fourth theme exercises screens/renderers with a new block and one
 registry entry; no extra theme ships.
 
-D19 is **open with the owner**: Tailwind v4's browser baseline is Safari 16.4+, Chrome 111+
-and Firefox 128+ ([official compatibility documentation](https://tailwindcss.com/docs/compatibility)).
-This foundation does not assert that the choir's rehearsal devices meet that baseline. Keep
-that support choice visible before rollout; do not silently substitute another Tailwind version.
+D19 adopts Safari 16.4+, Chrome 111+ and Firefox 128+
+([official compatibility documentation](https://tailwindcss.com/docs/compatibility)). Inventorying
+actual choir devices and checking floor-version material/style-query behavior remain rollout
+requirements; the development Chromium checks do not prove them.
+
+## Owner foundation decisions
+
+D01/D02/D07 replace independent admin/transcription/offline palette entries with the main
+application's accent, paper-layer and gold-ink families. Existing main values win over admin
+colors, which were never designed. Intentional sunken/raised/overlay paper shades and material
+occlusion, transmission and lighting remain separate. Gold marks use quiet shared ink stops;
+branding can use the bright stop. D22 merges A01 to `#795315` and A02 to `#e8d8b6`.
+
+D03 uses antique brand/piece titles and modern Atkinson instructional/body/control/lyric text.
+D04 supports two main themes and the current title; legacy Velvet/title/ribbon/paper/Bodoni/gel
+looks survive only as named experimental presets. Keeping legacy URLs avoids breaking device
+preferences while making their support status explicit.
+
+D05 B chooses rehearsal stability over immediate appearance feedback. All explicit, OS and
+cross-tab theme requests, type/title requests and paper choices queue throughout the player,
+including pause/stop; repertoire or landing entry applies them, including membership-loss exits. Last request per category wins.
+Renderers remain revision-aware so queued choices paint correctly at that boundary. Audio,
+score parsing, timing and session protocol are untouched.
+
+D18 retains immutable dark-on-white print roles and bundled engraving fonts. D20 strengthens
+normal text to ≥4.5:1 and focus/control accent to ≥3:1; main secondary ink replaces faint muted
+ink, and status inks are darkened where the sunken Parchment layer requires it. The contrast
+contract covers flat layers; rendered texture/compositing also needs browser evidence.
 
 See [the operating guide](../agents/design-system.md) for role additions, boundaries,
 retained parity variants, guard exceptions and verification limitations.
+
+
+## Additional applied owner decisions
+
+**D06.** Administration uses the same LightScore paper, accent, typography and shared controls in a deliberately compact work layout. Its former independent palette is retired; admin detail-page presentation remains pending owner confirmation.
+
+**D12 B.** Settings, prompts and main menus use centered native dialogs with safe viewport margins and a shared fade; transcription score review alone remains full-screen. Historical Sheet names are centered compatibility aliases; drag handles and swipe/slide behavior are retired. The desktop main-menu placement question remains pending owner approval.
+
+**D13 B.** Compact member and transcription-job row menus remain anchored popovers at every width, including phones. Shared placement bounds their geometry and keeps long menus internally scrollable; main menus retain the D12 dialog transport.
+
+**D16.** People and membership tables use labeled records below the account breakpoint. Comparison and metric tables retain contained horizontal scrolling, while administration navigation scrolls horizontally. These table/navigation choices do not settle the pending admin detail-page presentation.
+
+**D23.** The tablet library uses fixed 280px comfortable card columns between the compact and transport breakpoints, showing fewer, wider covers instead of squeezing extra columns. Below the compact breakpoint the existing single-column phone records remain.
+
+**D24.** An open menu retains its chosen presentation and DOM identity through rotation. Shared viewport handling re-bounds and scrolls its contents; presentation is chosen again only for a later opening.
+
+**D25.** At narrow panel widths, score review switches between score and original with one toggle above the panes. Wide layouts retain the side-by-side comparison switch; narrow layouts show only the selected pane and keep the return control reachable.
+
+**D26 interim.** Until room permissions are designed separately, the EN/DE introduction describes the current Together behavior: everyone controls shared playback on every device; volume, mute and solo remain personal. It promises no missing “take the lead” command and introduces no new session permissions.
+
+**D21 pending owner approval.** An extended voice palette requires owner approval against the current colors before implementation. Existing voice colors, labels and renderer identification cues remain; this round makes no palette change.

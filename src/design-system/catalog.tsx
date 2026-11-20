@@ -10,10 +10,7 @@ export interface Specimen {
 }
 export function specimens(): Specimen[] {
   const rows: Specimen[] = [];
-  for(const part of r.workspaceParts) rows.push({name:`workspace/${part}`,react:<R.Workspace as={part==='wordmark'?'a':'div'} href={part==='wordmark'?'/app':undefined} part={part}>Workspace</R.Workspace>,dom:()=>D.createWorkspace({as:part==='wordmark'?'a':'div',attrs:part==='wordmark'?{href:'/app'}:undefined,part,text:'Workspace'})});
-  rows.push({name:'navigation/admin',react:<R.NavigationTabs label="Pages" items={[{value:'users',label:'Users',href:'/admin/users'}]} value="users"/>,dom:()=>D.createNavigationTabs({label:'Pages',items:[{value:'users',label:'Users',href:'/admin/users'}],value:'users'})});
   rows.push({name:'status/admin',react:<R.Status variant="admin">Saved</R.Status>,dom:()=>D.createStatus({variant:'admin',text:'Saved'})});
-  rows.push({name:'badge/admin',react:<R.Badge variant="admin" intent="accent">Lead</R.Badge>,dom:()=>D.createBadge({variant:'admin',intent:'accent',text:'Lead'})});
   for (const variant of r.buttonVariants)
     for (const intent of ["secondary", "primary", "danger", "quiet"] as const)
       for (const state of ["default", "disabled", "busy", "pressed"] as const) {
@@ -30,6 +27,18 @@ export function specimens(): Specimen[] {
           dom: () => D.createButton({ ...props, text: "Continue" }),
         });
       }
+  for (const size of r.buttonSizes)
+    for (const intent of ["secondary", "primary", "danger", "quiet"] as const)
+      for (const state of ["default", "disabled", "busy", "pressed"] as const) {
+        const props = {size, intent, disabled: state === "disabled", busy: state === "busy", pressed: state === "pressed"};
+        rows.push({name: `button-size/${size}/${intent}/${state}`, react: <R.Button {...props}>Continue</R.Button>, dom: () => D.createButton({...props, text: "Continue"})});
+      }
+  for (const density of ["standard", "compact", "touch"] as const) {
+    rows.push({name: `field-size/${density}`, react: <R.Field density={density} label="Email" error="Please check the address">{a => <R.Input {...a} type="email" defaultValue="singer"/>}</R.Field>, dom: () => D.createField({density, label:"Email", error:"Please check the address", control:D.createInput({density, type:"email", value:"singer"})})});
+    rows.push({name: `checkbox-size/${density}`, react:<R.Checkbox density={density} label="Include when saving"/>,dom:()=>D.createCheckbox({density,label:"Include when saving"})});
+    rows.push({name: `switch-size/${density}`, react:<R.Switch density={density} label="Apply immediately"/>,dom:()=>D.createSwitch({density,label:"Apply immediately"})});
+    rows.push({name: `icon-button-size/${density}`, react:<R.IconButton size={density} label="Close">×</R.IconButton>,dom:()=>D.createIconButton({size:density,label:"Close",icon:document.createTextNode("×")})});
+  }
   for (const variant of r.iconButtonVariants)
     rows.push({
       name: `icon-button/${variant}`,

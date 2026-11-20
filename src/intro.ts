@@ -16,7 +16,7 @@ import {
   type ButtonOptions,
 } from "./design-system/dom";
 import { matchBreakpoint } from "./design-system/theme";
-import { lang, t } from "./i18n";
+import { lang, t, sharedPlaybackTourMessages } from "./i18n";
 
 /**
  * On for everyone; ?intro=aus switches it off on a device (no tours, no menu entry), ?intro=an
@@ -142,10 +142,7 @@ const TOURS: Record<TourId, Step[]> = {
     {
       at: ["#mode-seg"],
       title: { de: "Gemeinsam proben", en: "Rehearse together" },
-      text: {
-        de: "Wähle »Gemeinsam«: Wer leitet, startet die Musik auf allen Geräten.",
-        en: "Choose “Together”: whoever leads starts the music on every device.",
-      },
+      text: sharedPlaybackTourMessages.library,
     },
   ],
   player: [
@@ -233,11 +230,8 @@ const TOURS: Record<TourId, Step[]> = {
     },
     {
       at: ["#mode-badge"],
-      title: { de: "Probe leiten", en: "Lead the rehearsal" },
-      text: {
-        de: "In der gemeinsamen Probe übernimmst du hier die Leitung – alle Geräte folgen dann dir.",
-        en: "In a shared rehearsal, take the lead here – every device then follows you.",
-      },
+      title: sharedPlaybackTourMessages.title,
+      text: sharedPlaybackTourMessages.player,
     },
     {
       at: ["#player-menu-btn"],
@@ -339,17 +333,17 @@ export function startIntro(id: TourId, onClose?: () => void) {
   asides.className = tourRecipe().asides;
   const button = (
     label: string,
-    variant: ButtonOptions["variant"],
+    variant: "standard" | "quiet",
     action: () => void,
     intent: ButtonOptions["intent"] = "secondary",
-  ) => createButton({ text: label, variant, intent, onClick: action });
-  const skip = button(t("introSkip"), "tour-link", () => close("later"));
-  const never = button(t("introNever"), "tour-link", () => close("never"));
+  ) => createButton({ text: label, variant: "standard", size: variant === "quiet" ? "compact" : "standard", intent: variant === "quiet" ? "quiet" : intent, onClick: action });
+  const skip = button(t("introSkip"), "quiet", () => close("later"));
+  const never = button(t("introNever"), "quiet", () => close("never"));
   asides.append(skip, never);
-  const back = button(t("introBack"), "tour", () => go(index - 1));
+  const back = button(t("introBack"), "standard", () => go(index - 1));
   const next = button(
     t("introNext"),
-    "tour",
+    "standard",
     () => (index === steps.length - 1 ? close("done") : go(index + 1)),
     "primary",
   );

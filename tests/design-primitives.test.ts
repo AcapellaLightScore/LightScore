@@ -18,7 +18,7 @@ vi.mock('../src/design-system/theme', async importOriginal => ({
 }));
 afterEach(() => {
   D.closeOverlay();
-  dismissToast();
+  do { dismissToast(); } while (getToast());
   document.body.replaceChildren();
   vi.restoreAllMocks();
   vi.useRealTimers();
@@ -49,7 +49,7 @@ describe("DOM and React adapter contracts", () => {
     expect(button.getAttribute("aria-disabled")).toBe("true");
     expect(document.activeElement).toBe(button);
     expect(onClick).not.toHaveBeenCalled();
-    D.updateButton(button, { busy: false, variant: "pill" });
+    D.updateButton(button, { busy: false, size: "compact" });
     button.click();
     expect(onClick).toHaveBeenCalledOnce();
     expect(button.dataset.action).toBe("save");
@@ -334,6 +334,7 @@ describe("menu keyboard and shared notifier", () => {
     const host = document.getElementById("toast")!;
     const { api } = modal();
     toast("In modal");
+    expect(host.parentElement).toBe(document.querySelector("dialog[open]"));
     api.close();
     expect(host.parentElement).toBe(document.body);
     expect(host.textContent).toBe("In modal");
@@ -352,7 +353,9 @@ describe("menu keyboard and shared notifier", () => {
     vi.advanceTimersByTime(3200);
     expect(getToast()?.text).toBe("Error");
     expect(document.querySelectorAll("#toast")).toHaveLength(1);
-    vi.advanceTimersByTime(3300);
+    vi.advanceTimersByTime(33000);
+    expect(getToast()?.text).toBe("Error");
+    document.querySelector<HTMLButtonElement>("#toast button")!.click();
     expect(getToast()).toBeNull();
     expect(listener).toHaveBeenCalledTimes(3);
     unsubscribe();
@@ -439,11 +442,12 @@ describe("P3 review regression contracts", () => {
   it("updates buttons and icon buttons without losing named layout or icon appearance", () => {
     const button = D.createButton({
       text: "Save",
-      variant: "pill",
+      size: "compact",
       layout: "tw:ml-auto",
     });
     D.updateButton(button, { busy: true });
-    expect(button.className).toContain("tw:rounded-pill");
+    expect(button.className).toContain("tw:rounded-card");
+    expect(button.className).toContain("tw:min-h-control-height-compact");
     expect(button.className).toContain("tw:ml-auto");
     const icon = D.createIconButton({
       label: "Close",
@@ -458,12 +462,12 @@ describe("P3 review regression contracts", () => {
   it("inherits React Field/Table variants and binds DOM table parts once", () => {
     const field = renderToString(
       createElement(R.Field, {
-        variant: "admin",
+        variant: "search",
         label: "Name",
         children: (props) => createElement(R.Input, { ...props }),
       }),
     );
-    expect(field).toContain('data-field-variant="admin"');
+    expect(field).toContain('data-field-variant="search"');
     const table = renderToString(
       createElement(
         R.Table,
@@ -483,10 +487,10 @@ describe("P3 review regression contracts", () => {
     const parsed = document.createElement("div");
     parsed.innerHTML = table;
     expect(parsed.querySelector("td")?.className).toContain(
-      "tw:max-account:block",
+      "tw:max-account:grid",
     );
     const parts = D.createTableParts({ variant: "records" });
-    expect(parts.cell("Name").className).toContain("tw:max-account:block");
+    expect(parts.cell("Name").className).toContain("tw:max-account:grid");
   });
   it("forwards root hooks, dialog associations and confirm semantics, and Card as", () => {
     const html = renderToString(
@@ -556,9 +560,9 @@ describe("P3 review regression contracts", () => {
     const host = document.getElementById("toast")!;
     expect(host.getAttribute("role")).toBe("alert");
     dismissToast();
-    expect(host.textContent).toBe("Error");
+    expect(host.textContent).toBe("Error×");
     vi.advanceTimersByTime(299);
-    expect(host.textContent).toBe("Error");
+    expect(host.textContent).toBe("Error×");
     vi.advanceTimersByTime(1);
     expect(host.textContent).toBe("");
     toast("Old");
@@ -639,26 +643,26 @@ describe("shared panel motion", () => {
   });
 });
 
-describe("shared sheet motion", () => {
+describe("centered dialog compatibility motion", () => {
   it("retains the modal and scroll lock through the exit, then restores focus", () => {
     vi.useFakeTimers();
     const { dialog, api, opener } = modal({ motion: "sheet" });
-    expect(dialog.dataset.sheetState).toBe("entering");
+    expect(dialog.dataset.panelState).toBe("entering");
     vi.advanceTimersByTime(20);
-    expect(dialog.dataset.sheetState).toBe("open");
+    expect(dialog.dataset.panelState).toBe("open");
     dialog.style.transitionDuration = "0.22s";
     api.close();
-    expect(dialog.dataset.sheetState).toBe("closing");
+    expect(dialog.dataset.panelState).toBe("closing");
     expect(dialog.open).toBe(true);
     expect(document.body.style.overflow).toBe("hidden");
     const event = new Event("transitionend");
-    Object.defineProperty(event, "propertyName", { value: "transform" });
+    Object.defineProperty(event, "propertyName", { value: "opacity" });
     dialog.dispatchEvent(event);
     expect(dialog.open).toBe(false);
     expect(document.activeElement).toBe(opener);
-    expect(dialog.hasAttribute("data-sheet-state")).toBe(false);
+    expect(dialog.hasAttribute("data-panel-state")).toBe(false);
   });
-  it("routes swipe dismissal through busy cancellation and releases touch listeners", () => {
+  it("does not swipe-dismiss centered dialogs, including historical sheet APIs", () => {
     vi.useFakeTimers();
     const onCancel = vi.fn();
     const { dialog, api } = modal({ motion: "sheet", busy: true, onCancel });
@@ -670,7 +674,7 @@ describe("shared sheet motion", () => {
     vi.advanceTimersByTime(20);
     touch("touchstart", 100);
     touch("touchmove", 300);
-    expect(dialog.style.transform).toContain("192px");
+    expect(dialog.style.transform).toBe("");
     touch("touchend", 300);
     vi.advanceTimersByTime(20);
     expect(dialog.open).toBe(true);
@@ -681,7 +685,8 @@ describe("shared sheet motion", () => {
     touch("touchmove", 300);
     touch("touchend", 300);
     vi.advanceTimersByTime(20);
-    expect(onCancel).toHaveBeenCalledWith("swipe");
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(dialog.open).toBe(true);
     api.dispose();
     touch("touchstart", 100);
     touch("touchmove", 300);
@@ -692,13 +697,13 @@ describe("shared sheet motion", () => {
     vi.stubGlobal("matchMedia", () => ({ matches: true }));
     try {
       const { dialog, api } = modal({ motion: "sheet" });
-      expect(dialog.dataset.sheetState).toBe("open");
+      expect(dialog.dataset.panelState).toBe("entering");
       api.close();
       expect(dialog.open).toBe(false);
       const next = modal({ motion: "sheet" });
       next.api.dispose();
       vi.runAllTimers();
-      expect(next.dialog.hasAttribute("data-sheet-state")).toBe(false);
+      expect(next.dialog.hasAttribute("data-panel-state")).toBe(false);
     } finally {
       vi.unstubAllGlobals();
     }
@@ -777,7 +782,8 @@ it('uses token durations for toast lifetime and exit rather than numeric default
     vi.advanceTimersByTime(11); expect(document.getElementById('toast')?.textContent).toBe('');
     toast('Short error', 'error');
     vi.advanceTimersByTime(22); expect(getToast()?.text).toBe('Short error');
-    vi.advanceTimersByTime(1); expect(getToast()).toBeNull();
+    vi.advanceTimersByTime(10000); expect(getToast()?.text).toBe('Short error');
+    dismissToast(); expect(getToast()).toBeNull();
   } finally { Object.assign(toastRoles, original); }
 });
 
@@ -792,4 +798,153 @@ it('finishes a sheet through its duration fallback when transitionend is absent'
   vi.advanceTimersByTime(1);
   expect(dialog.open).toBe(false);
   expect(document.activeElement).toBe(opener);
+});
+
+describe('AICAP-28 overlay decisions', () => {
+  it('keeps actionable prompts and errors until dismissed, then delivers queued notices', () => {
+    vi.useFakeTimers();
+    const selected = vi.fn();
+    toast('Reload available', 'info', {action: {label: 'Reload', onSelect: selected}});
+    toast('Saved');
+    vi.advanceTimersByTime(60000);
+    expect(getToast()?.text).toBe('Reload available');
+    document.querySelector<HTMLButtonElement>('#toast button')!.click();
+    expect(selected).toHaveBeenCalledOnce();
+    expect(getToast()?.text).toBe('Saved');
+    vi.advanceTimersByTime(3200);
+    expect(getToast()).toBeNull();
+  });
+  it('generates a danger confirmation command and alertdialog semantics in both adapters', () => {
+    const confirmed = vi.fn();
+    const options = {title: 'Remove member', destructive: true, confirmAction: {label: 'Remove permanently', onConfirm: confirmed}};
+    const dom = D.createConfirmDialog(options).element;
+    expect(dom.getAttribute('role')).toBe('alertdialog');
+    expect(dom.querySelector('button')?.className).toContain('tw:bg-danger');
+    dom.querySelector('button')!.click();
+    expect(confirmed).toHaveBeenCalledOnce();
+    const root = document.createElement('div');
+    root.innerHTML = renderToString(createElement(R.ConfirmDialog, {...options, open: true, specimen: true}));
+    expect(root.querySelector('dialog')?.getAttribute('role')).toBe('alertdialog');
+    expect(root.querySelector('button')?.className).toContain('tw:bg-danger');
+  });
+  it('fits the visible keyboard viewport and scrolls the focused field without changing the dialog identity', () => {
+    vi.useFakeTimers();
+    const viewport = Object.assign(new EventTarget(), {width: 390, height: 844, offsetTop: 0, offsetLeft: 0});
+    vi.stubGlobal('visualViewport', viewport);
+    try {
+      const {dialog, api} = modal();
+      const focused = dialog.querySelector('button')!;
+      const scroll = vi.fn();
+      focused.scrollIntoView = scroll;
+      focused.focus();
+      viewport.height = 380;
+      viewport.offsetTop = 25;
+      viewport.dispatchEvent(new Event('resize'));
+      vi.advanceTimersByTime(20);
+      expect(dialog.style.maxHeight).toContain('380px');
+      expect(dialog.style.top).toContain('25px');
+      expect(scroll).toHaveBeenCalledWith({block:'nearest', inline:'nearest', behavior:'instant'});
+      api.dispose();
+      scroll.mockClear();
+      viewport.dispatchEvent(new Event('resize'));
+      vi.advanceTimersByTime(20);
+      expect(scroll).not.toHaveBeenCalled();
+    } finally { vi.unstubAllGlobals(); }
+  });
+});
+
+
+it('inherits field density and keeps error feedback next to a focused control',()=>{
+  const html=renderToString(createElement(R.Field,{density:'compact',label:'Email',error:'Check email',children:a=>createElement(R.Input,{...a,type:'email'})}));
+  expect(html).toContain('tw:min-h-control-height-compact');
+  expect(html).not.toContain('density="');
+  const input=D.createInput({density:'compact',type:'email'});
+  const field=D.createField({density:'compact',label:'Email',control:input});
+  document.body.append(field);input.focus();
+  D.updateField(field,{error:'Check email'});
+  expect(document.activeElement).toBe(input);
+  expect(input.className).toContain('tw:min-h-control-height-compact');
+  expect(input.nextElementSibling?.textContent).toBe('Check email');
+  expect(input.getAttribute('aria-describedby')).toContain(input.nextElementSibling?.id);
+  expect(input.getAttribute('aria-invalid')).toBe('true');
+  expect(input.className).toContain('tw:border-danger');
+});
+
+
+describe('AICAP-28 review fixes', () => {
+  it('coalesces identical queued notices and active repeats without extending their lifetime', () => {
+    vi.useFakeTimers();
+    toast('Unresolved failure', 'error');
+    const active = getToast()?.id;
+    toast('Unresolved failure', 'error');
+    expect(getToast()?.id).toBe(active);
+    for (let i = 0; i < 20; i++) toast('Saved');
+    dismissToast();
+    expect(getToast()?.text).toBe('Saved');
+    vi.advanceTimersByTime(2000);
+    toast('Saved');
+    vi.advanceTimersByTime(1200);
+    expect(getToast()).toBeNull();
+  });
+  it('bounds pending notices to ten, retaining the newest distinct notices in delivery order', () => {
+    toast('Unresolved failure', 'error');
+    for (let i = 0; i < 30; i++) toast(`Notice ${i}`);
+    const delivered: string[] = [];
+    dismissToast();
+    while (getToast()) { delivered.push(getToast()!.text); dismissToast(); }
+    expect(delivered).toEqual(Array.from({length:10}, (_, i) => `Notice ${i + 20}`));
+  });
+  it('does not coalesce different actions or different persistence policies', () => {
+    const first = vi.fn(), second = vi.fn();
+    toast('Failure', 'error');
+    toast('Retry', 'info', {action:{label:'Retry',onSelect:first}});
+    toast('Retry', 'info', {action:{label:'Retry',onSelect:second}});
+    dismissToast();document.querySelector<HTMLButtonElement>('#toast button')!.click();
+    expect(first).toHaveBeenCalledOnce();expect(second).not.toHaveBeenCalled();
+    document.querySelector<HTMLButtonElement>('#toast button')!.click();
+    expect(second).toHaveBeenCalledOnce();expect(getToast()).toBeNull();
+    toast('Failure', 'error');toast('Saved');toast('Saved','info',{persistent:true});
+    dismissToast();dismissToast();expect(getToast()?.persistent).toBe(true);
+  });
+  it('uses a shrinkable wrapping message slot beside actionable toast controls', () => {
+    toast('Eine sehr lange Fehlermeldung', 'error', {action:{label:'Erneut versuchen',onSelect(){}}});
+    const message = document.querySelector('#toast > span');
+    expect(message?.textContent).toBe('Eine sehr lange Fehlermeldung');
+    expect(message?.className).toContain('tw:min-w-flush');
+    expect(message?.className).toContain('tw:flex-1');
+  });
+  it('gives library final confirmations the shared danger border', () => {
+    const dialog = D.createDialog({variant:'library-prompt', title:'Delete piece', destructive:true, attrs:{role:'alertdialog'}}).element;
+    expect(dialog.className).toContain('tw:border-danger');
+    expect(dialog.className).not.toContain('tw:border-rule-strong');
+    expect(dialog.getAttribute('role')).toBe('alertdialog');
+  });
+});
+
+
+it('passes destructive intent from libraryPrompt through the real dialog adapter', async () => {
+  const {readFileSync}=await import('node:fs');
+  const ts=await import('typescript');
+  const source=ts.createSourceFile('main.ts',readFileSync('src/main.ts','utf8'),ts.ScriptTarget.Latest,true);
+  const fn=source.statements.find(node=>ts.isFunctionDeclaration(node)&&node.name?.text==='libraryPrompt')!;
+  const compiled=ts.transpileModule(fn.getText(source),{compilerOptions:{target:ts.ScriptTarget.ES2022}}).outputText;
+  const nativeDialog = (options: Parameters<typeof D.createDialog>[0]) => {
+    const result = D.createDialog(options);
+    Object.defineProperty(result.element, 'showModal', {value:()=>{result.element.open=true;}});
+    Object.defineProperty(result.element, 'close', {value:()=>{result.element.open=false;result.element.dispatchEvent(new Event('close'));}});
+    return result;
+  };
+  vi.stubGlobal('matchMedia', () => ({matches:true}));
+  const prompt=new Function('document' ,'createInput','createButton','createDialog','t','requestAnimationFrame',compiled+';return libraryPrompt;')(document,D.createInput,D.createButton,nativeDialog,(key:string)=>key,()=>{});
+  for(const title of ['Delete piece','Remove voice','Remove all sections']) {
+    const result=prompt({title,danger:true,confirmLabel:'Remove'});
+    const dialog=document.querySelector<HTMLDialogElement>('dialog[open]')!;
+    expect(dialog.getAttribute('role')).toBe('alertdialog');
+    expect(dialog.className).toContain('tw:border-danger');
+    expect(dialog.querySelector('button[type=submit]')?.className).toContain('tw:bg-danger');
+    dialog.querySelector('form')!.dispatchEvent(new Event('submit',{cancelable:true}));
+    dialog.dispatchEvent(new Event('transitionend'));
+    expect(await result).toBe('ok');
+  }
+  vi.unstubAllGlobals();
 });

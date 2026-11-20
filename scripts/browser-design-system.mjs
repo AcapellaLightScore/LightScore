@@ -17,7 +17,7 @@ export async function verifyDesignSystemPage({ specimens } = {}) {
   if (rows.length < 180) throw Error("Showcase missing primitives");
   for (const name of ["button/account-link/secondary/default", "button/password-toggle/secondary/default", "field/ruled-account/input/invalid", "control-group/trailing-action", "toggle-group/language-separated", "status/account/error"])
     if (!rows.some(row => row.dataset.specimen === name)) throw Error("Missing account parity specimen: " + name);
-  for (const name of ["navigation/admin", "workspace/wordmark", "workspace/page", "workspace/definitions", "button/dense-sort/secondary/default", "toggle-group/admin-language", "dialog/admin-reason", "dialog/admin-confirm", "table/records", "table/metrics", "status/admin", "badge/admin"])
+  for (const name of ["button-size/compact/quiet/default", "dialog/admin-detail", "table/records", "table/metrics", "status/admin"])
     if (!rows.some(row => row.dataset.specimen === name)) throw Error("Missing admin parity specimen: " + name);
   for (const name of ["field-group/transcription", "card/tour", "card/power-hint", "dialog/domain-sheet", "dialog/transcription", "dialog/transcription-review", "menu/job", "switch-native/comparison/false"])
     if (!rows.some(row => row.dataset.specimen === name)) throw Error("Missing isolated DOM parity specimen: " + name);
@@ -28,9 +28,11 @@ export async function verifyDesignSystemPage({ specimens } = {}) {
     if (!record || getComputedStyle(record).cursor === "pointer")
       throw Error("Static record row has command appearance: " + renderer);
     record.tabIndex = 0;
+    record.dataset.href = "/example";
     if (getComputedStyle(record).cursor !== "pointer")
       throw Error("Openable record row missing command appearance: " + renderer);
     record.removeAttribute("tabindex");
+    record.removeAttribute("data-href");
   }
   let elements = 0,
     properties = 0,
@@ -137,13 +139,13 @@ export async function verifyDesignSystemPage({ specimens } = {}) {
   const buttons = [...normal.querySelectorAll("button")],
     previous = buttons.map((e) => getComputedStyle(e).minHeight);
   const original = document.documentElement.style.getPropertyValue(
-    "--ds-control-height",
+    "--ds-control-height-touch",
   );
-  document.documentElement.style.setProperty("--ds-control-height", "57px");
+  document.documentElement.style.setProperty("--ds-control-height-touch", "57px");
   const after = buttons.map((e) => getComputedStyle(e).minHeight);
   if (original)
-    document.documentElement.style.setProperty("--ds-control-height", original);
-  else document.documentElement.style.removeProperty("--ds-control-height");
+    document.documentElement.style.setProperty("--ds-control-height-touch", original);
+  else document.documentElement.style.removeProperty("--ds-control-height-touch");
   if (
     after.length !== 2 ||
     !after.every((value) => value === "57px") ||
@@ -220,6 +222,7 @@ export async function verifyDesignSystemBehavior() {
   );
   assert(modal.element.open, "Busy outside must stay open");
   modal.setBusy(false);
+  const escaped = new Promise(resolve => modal.element.addEventListener("close", resolve, {once: true}));
   modal.element.dispatchEvent(
     new KeyboardEvent("keydown", {
       key: "Escape",
@@ -227,6 +230,7 @@ export async function verifyDesignSystemBehavior() {
       cancelable: true,
     }),
   );
+  await escaped;
   assert(!modal.element.open && !opener.inert, "Escape cleanup");
   assert(document.activeElement === opener, "Focus return");
   const next = D.createSheet({ title: "Sheet", body: "Outside closes" });
@@ -377,17 +381,17 @@ export async function verifyP3ReviewFixes() {
   focusAudit.style.textTransform = "uppercase";
   document.body.append(focusAudit);
   try {
-    for (const [variant, offset] of [["standard", "4px"], ["dense", "3px"], ["player-play", "2px"]]) {
+    for (const [variant, offset] of [["standard", "4px"], ["player-play", "2px"]]) {
       const button = D.createButton({ variant, text: "Focus offset" });
       focusAudit.append(button);
       button.focus({ preventScroll: true });
       assert(button.matches(":focus-visible"), `${variant} fixture has keyboard focus`);
       assert(getComputedStyle(button).outlineOffset === offset, `${variant} focus offset is ${offset}`);
     }
-    const input = D.createInput({ variant: "admin", value: "MixedCase" });
-    const field = D.createField({ variant: "admin", label: "MixedCase", control: input });
+    const input = D.createInput({ variant: "search", value: "MixedCase" });
+    const field = D.createField({ variant: "search", label: "MixedCase", control: input });
     focusAudit.append(field);
-    assert(getComputedStyle(field).textTransform === "none" && getComputedStyle(field.querySelector("label")).textTransform === "none" && getComputedStyle(input).textTransform === "none", "Admin field and control retain normal casing inside uppercase parent");
+    assert(getComputedStyle(field).textTransform === "none" && getComputedStyle(field.querySelector("label")).textTransform === "none" && getComputedStyle(input).textTransform === "none", "Shared field and control retain normal casing inside uppercase parent");
   } finally { focusAudit.remove(); }
   const opener = document.createElement("button");
   opener.textContent = "Regression opener";
@@ -451,6 +455,7 @@ export async function verifyP3ReviewFixes() {
         cancelable: true,
       }),
     );
+    await until(() => fixture.calls.close === 1, "React fade completes cancellation");
     assert(
       fixture.calls.close === 1 && fixture.calls.cancel === 1,
       "minor6 cancellation and completed close once",
@@ -458,8 +463,8 @@ export async function verifyP3ReviewFixes() {
   } finally {
     fixture.dispose();
   }
-  const parent = D.createDrawer({
-    title: "Parent drawer",
+  const parent = D.createDialog({variant:"admin-detail",
+    title: "Parent dialog",
     content: D.createButton({
       text: "Confirm",
       attrs: { id: "p3-parent-action" },
@@ -474,13 +479,14 @@ export async function verifyP3ReviewFixes() {
   nested.open();
   assert(
     parent.element.open && nested.element.open,
-    "minor9 nested confirm stacks above drawer",
+    "minor9 nested confirm stacks above dialog",
   );
   nested.close();
+  await until(() => !nested.element.isConnected, "Nested centered confirm exit completes");
   assert(
     parent.element.open &&
       document.activeElement === parent.element.querySelector("button"),
-    "minor9 nested focus returns inside drawer",
+    "minor9 nested focus returns inside dialog",
   );
   const portal = F.mountReactFixture();
   await wait(30);
@@ -494,8 +500,9 @@ export async function verifyP3ReviewFixes() {
   document
     .getElementById("toast")
     .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-  assert(parent.element.open, "minor9 toast pointer does not cancel drawer");
+  assert(parent.element.open, "minor9 toast pointer does not cancel dialog");
   parent.close();
+  await until(() => !parent.element.isConnected, "Parent centered detail exit completes");
   // Simulate Safari pointer activation leaving activeElement on body.
   opener.focus();
   opener.blur();
@@ -506,6 +513,7 @@ export async function verifyP3ReviewFixes() {
   });
   safari.open();
   safari.close();
+  await until(() => !safari.element.isConnected, "Safari centered dialog exit completes");
   assert(
     document.activeElement === opener,
     "minor9 pointer opener focus return without activeElement",
@@ -515,12 +523,12 @@ export async function verifyP3ReviewFixes() {
   const sheet = D.createSheet({ title: "Exit regression", content, behavior: { opener } });
   sheet.open();
   const close = sheet.close;
-  await until(() => sheet.element.dataset.sheetState === "open", "Sheet enters open state");
+  await until(() => sheet.element.dataset.panelState === "open", "Sheet enters open state");
   const nativeSheet = sheet.element;
   B.toast("Sheet toast then close");
   close();
   assert(
-    nativeSheet.open && nativeSheet.isConnected && nativeSheet.dataset.sheetState === "closing",
+    nativeSheet.open && nativeSheet.isConnected && nativeSheet.dataset.panelState === "closing",
     "M2 sheet remains in top layer during exit",
   );
   assert(
@@ -562,12 +570,12 @@ export async function verifyP3ReviewFixes() {
   touch("touchend", 240);
   await wait(25);
   assert(
-    swipeDialog.open && swipeDialog.dataset.sheetState === "closing",
-    "M2 swipe starts exit transition",
+    swipeDialog.open && swipeDialog.dataset.panelState === "open",
+    "D12 centered dialog ignores swipe gestures",
   );
-  await until(() => !swipeDialog.isConnected, "Swipe exit completes via transition or duration fallback");
-  assert(!swipeDialog.isConnected, "M2 swipe completes dismissal");
   swipeClose();
+  await until(() => !swipeDialog.isConnected, "Centered dialog closes through native lifecycle");
+  assert(!swipeDialog.isConnected, "D12 explicit dismissal completes");
   B.dismissToast();
   assert(
     document.getElementById("toast").textContent === "Sheet toast then close",
@@ -667,4 +675,68 @@ export async function verifyP3ReducedMotion() {
   if (dialog.open || dialog.isConnected)
     throw Error("Reduced motion exit must be immediate");
   return { reducedMotionImmediate: true };
+}
+
+
+/** D08–D11/D15/D17: real emitted sizes and feedback in both adapters. */
+export async function verifyOwnerComponents() {
+  const records=[];
+  const {matchBreakpoint}=await import('/src/design-system/theme/index.ts');
+  const touch=matchMedia('(any-pointer: coarse)').matches || matchBreakpoint('panel','max').matches;
+  for(const renderer of ['react','dom']) {
+    for(const size of ['standard','compact','full-width','touch']) {
+      const button=document.querySelector(`[data-specimen="button-size/${size}/primary/default"] [data-renderer="${renderer}"] button`);
+      if(!button) throw Error('Missing decided button size '+size);
+      const rect=button.getBoundingClientRect(), css=getComputedStyle(button);
+      const expected=size==='compact'&&!touch?32:44;
+      if(rect.height<expected || rect.width<expected) throw Error(`${renderer} ${size} target ${rect.width}×${rect.height} below ${expected}`);
+      if(size==='full-width' && Math.abs(rect.width-button.parentElement.getBoundingClientRect().width)>1) throw Error('Full-width size does not fill its container');
+      records.push({renderer,size,width:rect.width,height:rect.height,radius:css.borderRadius});
+    }
+    for(const density of ['standard','compact','touch']) {
+      for(const kind of ['field','checkbox','switch','icon-button']) {
+        const root=document.querySelector(`[data-specimen="${kind}-size/${density}"] [data-renderer="${renderer}"]`);
+        const target=kind==='field'?root.querySelector('input'):kind==='checkbox'?root.querySelector('label'):root.querySelector('button');
+        const rect=target.getBoundingClientRect();
+        const expected=density==='compact'&&!touch?32:44;
+        if(rect.height<expected || rect.width<expected) throw Error(`${renderer} ${kind} ${density} target ${rect.width}×${rect.height} below ${expected}`);
+        if(kind==='field') {
+          const error=root.querySelector('[role=alert]');
+          if(!error || !target.getAttribute('aria-describedby')?.split(' ').includes(error.id) || target.getAttribute('aria-invalid')!=='true') throw Error('Field feedback association lost');
+          if(getComputedStyle(error).textAlign==='center') throw Error('Field error is detached from writing line');
+          if(error.getBoundingClientRect().top < rect.bottom-1) throw Error('Error must follow field');
+        }
+      }
+    }
+    const accountPassword=document.querySelector(`[data-specimen="field/account-password/input/normal"] [data-renderer="${renderer}"] input`);
+    if(accountPassword.getBoundingClientRect().height<44) throw Error('Account password must use shared target height');
+    for(const variant of ['standard','small','transcription','library-menu']) {
+      const icon=document.querySelector(`[data-specimen="icon-button/${variant}"] [data-renderer="${renderer}"] button`);
+      const r=icon.getBoundingClientRect();if(r.width<44||r.height<44)throw Error(`${renderer} ${variant} icon target below 44`);
+    }
+    if(touch)for(const variant of ['domain-language','transcription-language','review-item','account-link','password-toggle']) {
+      const action=document.querySelector(`[data-specimen="button/${variant}/secondary/default"] [data-renderer="${renderer}"] button`);
+      const r=action.getBoundingClientRect();if(r.width<44||r.height<44)throw Error(`${renderer} ${variant} touch target below 44`);
+    }
+    const normal=document.querySelector(`[data-specimen="field/ruled/input/normal"] [data-renderer="${renderer}"] input`);
+    const boxed=document.querySelector(`[data-specimen="field/search/input/normal"] [data-renderer="${renderer}"] input`);
+    if(getComputedStyle(normal).borderTopWidth!=='0px'||getComputedStyle(normal).borderBottomWidth==='0px') throw Error('Normal forms must use writing lines');
+    if(getComputedStyle(boxed).borderTopWidth==='0px') throw Error('Search must use a box');
+    const luminance=paint=>{
+      const channels=paint.match(/[\d.]+/g).map(Number);
+      if(channels.length>3&&channels[3]!==1)throw Error("Switch contrast requires opaque paints: "+paint);
+      const rgb=channels.slice(0,3).map(value=>{value/=255;return value<=0.04045?value/12.92:((value+0.055)/1.055)**2.4;});
+      return rgb[0]*0.2126+rgb[1]*0.7152+rgb[2]*0.0722;
+    };
+    for(const checked of [false,true]) {
+      const track=document.querySelector(`[data-specimen="switch/shared-device/${checked}"] [data-renderer="${renderer}"] [role=switch]`);
+      const thumb=track.querySelector('span'),a=luminance(getComputedStyle(track).backgroundColor),b=luminance(getComputedStyle(thumb).backgroundColor);
+      if((Math.max(a,b)+0.05)/(Math.min(a,b)+0.05)<3)throw Error(`${renderer} switch ${checked} thumb contrast below 3:1`);
+    }
+    const shared=document.querySelector(`[data-specimen="switch/shared-device/true"] [data-renderer="${renderer}"] [role=switch]`);
+    if(!shared || getComputedStyle(shared).display==='none') throw Error('Immediate shared-device setting must show a switch');
+    const jobs=document.querySelector(`[data-specimen="empty/jobs-hidden"] [data-renderer="${renderer}"] section`);
+    if(getComputedStyle(jobs).display!=='none') throw Error('Irrelevant scan work must remain hidden');
+  }
+  return {touch,records};
 }

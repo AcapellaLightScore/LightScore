@@ -1,7 +1,7 @@
 import { themeRegistry } from './design-system/theme';
 import { appShellRecipe, landingRecipe } from "./design-system/recipes/shell";
-import { createMainScreen, createPanelPart, createSectionMark, createOffsetControl, createCheckbox, createPlayerPart, createVoiceRow, createVoiceChip, createMixerVolume, createPlayerGlyph, createButton, updateButton, createSwitch, updateSwitch, createStatus, createAccountPart, createIconButton, createInput, createField, createCard, createBadge, createLibraryPart, updateLibraryBanner, createDialog, createSheet, createMenu, toast } from './design-system/dom';
-import { matchBreakpoint } from './design-system/theme';
+import { createMainScreen, createPanelPart, createSectionMark, createOffsetControl, createCheckbox, createPlayerPart, createVoiceRow, createVoiceChip, createMixerVolume, createPlayerGlyph, createButton, updateButton, updateField, createLoading, createEmptyState, createSwitch, updateSwitch, createStatus, createAccountPart, createIconButton, createInput, createField, createCard, createBadge, createLibraryPart, updateLibraryBanner, createDialog, createSheet, createMenu, toast } from './design-system/dom';
+import { matchBreakpoint, hasExperimentalAppearance, setAppearanceRehearsing } from './design-system/theme';
 import { localLibrary } from './local-library';
 import { appendAdminAccountLink } from './admin-account';
 import { isOffline } from './offline-state';
@@ -76,9 +76,6 @@ function openLibrarySheet(
     behavior: { opener, onClose, ...(closeVariant === "player" ? { initialFocus: (): HTMLElement => sheet.element } : {}) },
   });
   const head = sheet.element.querySelector("header")!;
-  const grab = createLibraryPart("span","sheet-grab");
-  grab.setAttribute("aria-hidden", "true");
-  head.prepend(grab);
   head.append(
     createIconButton({
       variant: closeVariant,
@@ -117,42 +114,14 @@ function openLibraryMenu(
     items: convert(items),
     onEscape: () => overlay.requestClose(),
   });
-  const behavior = {
-    opener: anchor,
-    initialFocus: () =>
-      menu.element.querySelector<HTMLElement>('[role^="menuitem"]'),
-    onClose: () => menu.dispose(),
-  };
-  if (isNarrow()) {
-    overlay = openLibrarySheet(title, menu.element, anchor, () =>
-      menu.dispose(),
-    );
-    menu.element
-      .querySelector<HTMLElement>('[role^="menuitem"]')
-      ?.focus({ preventScroll: true });
-  } else {
-    overlay = createDialog({
-      variant: "library-popover",
-      title,
-      attrs: { "aria-label": label },
-      content: menu.element,
-      behavior,
-    });
-    overlay.open();
-    const place = () => {
-      const a = anchor.getBoundingClientRect(),
-        p = overlay.element.getBoundingClientRect();
-      overlay.element.style.left = `${Math.max(8, Math.min(window.innerWidth - p.width - 8, a.right - p.width))}px`;
-      overlay.element.style.top = `${Math.max(8, a.bottom + 8 + p.height > window.innerHeight - 8 ? a.top - p.height - 8 : a.bottom + 8)}px`;
-    };
-    place();
-    requestAnimationFrame(place);
-  }
+  // D12/D24: choose presentation once; the same centered dialog survives rotation.
+  overlay = openLibrarySheet(label, menu.element, anchor, () => menu.dispose());
+  menu.element.querySelector<HTMLElement>('[role^="menuitem"]')?.focus({ preventScroll: true });
 }
-function openPlayerPopover(anchor:HTMLElement,content:HTMLElement,align:'start'|'center', label:string) {
- const panel=createDialog({variant:'library-popover',title:'',attrs:{'aria-label':label},content,behavior:{opener:anchor,initialFocus:()=>panel.element}});panel.open();
- const place=()=>{const a=anchor.getBoundingClientRect(),p=panel.element.getBoundingClientRect();let left=align==='start'?a.left:a.left+(a.width-p.width)/2;left=Math.max(8,Math.min(window.innerWidth-p.width-8,left));const below=a.bottom+8;panel.element.style.left=`${left}px`;panel.element.style.top=`${Math.max(8,below+p.height>window.innerHeight-8?a.top-p.height-8:below)}px`;};place();requestAnimationFrame(place);return panel;
+function openPlayerPopover(anchor:HTMLElement,content:HTMLElement,_align:'start'|'center', label:string) {
+  return openLibrarySheet(label, content, anchor, undefined, "player");
 }
+
 function libraryPrompt(options: {
   title: string;
   body?: string;
@@ -189,6 +158,7 @@ function libraryPrompt(options: {
     actions.append(cancel, submit);
     const dialog = createDialog({
       variant: "library-prompt",
+      destructive: options.danger,
       title: options.title,
       body: options.body,
       content: form,
@@ -386,6 +356,7 @@ function setViewMode(mode: 'landing' | 'library' | 'player') {
   app.classList.toggle('mode-landing', mode === 'landing');
   app.classList.toggle('mode-library', mode === 'library');
   app.classList.toggle('mode-player', mode === 'player');
+  setAppearanceRehearsing(mode === 'player');
   // The title screen keeps its plain ground: only the voice ribbons move there.
   backdrop.setShown(mode !== 'landing');
   closeOverlay();
@@ -870,9 +841,10 @@ function openExportSheet(opener: HTMLElement | null) {
     li.style.setProperty('--c', source.color);
     li.dataset.themeVoice = String(score.parts.findIndex(part => (part.sourceId ?? part.id) === source.id));
     li.dataset.themeVoiceCount = String(score.parts.length);
-    const check = createCheckbox({variant:'export-voice',checked:true,label:source.name,attrs:{'aria-label':source.name}}).querySelector('input')!;
+    const checkbox = createCheckbox({variant:'export-voice',checked:true,label:'',attrs:{'aria-label':source.name}});
+    const check = checkbox.querySelector('input')!;
     const name = createInput({variant:'panel-export',value:source.name,attrs:{'aria-label':t('renameVoice')}});
-    li.append(check, name);
+    li.append(checkbox, name);
     list.appendChild(li);
     check.addEventListener('change', () => {
       li.classList.toggle('off', !check.checked);
@@ -952,12 +924,11 @@ function soundItems() {
 
 /**
  * Erscheinungsbild: the look on this device -- following its light or dark mode (night paper in
- * dark mode, parchment in light mode), or one of the two. Retained canvases repaint live.
+ * dark mode, parchment in light mode), or one of the two. Choices wait until the repertoire.
  */
 function appearanceItems() {
   const choose = (next: DesignChoice) => () => {
-    if (next === DESIGN_CHOICE) return;
-    setDesignChoice(next);
+    if (setDesignChoice(next)) toast(t('appearanceDeferred'));
   };
   const options = [
     { label: t('designAuto'), checked: DESIGN_CHOICE === 'auto', onSelect: choose('auto') },
@@ -967,7 +938,7 @@ function appearanceItems() {
       onSelect: choose(aliases[0]),
     })),
   ];
-  return [{ label: t('appearance'), icon: 'sheet' as const, value: options.find((o) => o.checked)?.label ?? '', options, onSelect: () => {} }];
+  return [{ label: hasExperimentalAppearance() ? t('experimentalAppearance') : t('appearance'), icon: 'sheet' as const, value: options.find((o) => o.checked)?.label ?? '', options, onSelect: () => {} }];
 }
 
 // Theme changes repaint retained resources without touching the audio/session lifecycle.
@@ -1018,7 +989,7 @@ function openPaperSheet(opener: HTMLElement | null) {
     text.append(name, desc);
     b.append(swatch, text);
     b.addEventListener('click', () => {
-      setPaperKind(kind);
+      if (setPaperKind(kind)) toast(t('appearanceDeferred'));
       mark();
     });
     buttons.set(kind, b);
@@ -1241,21 +1212,18 @@ function renderSongList() {
   const shown = q ? songs.filter((s) => s.title.toLowerCase().includes(q)) : songs;
   const items: HTMLElement[] = shown.map(songCard);
   if (libraryState === 'loading') {
-    for (let i = 0; i < 3; i++) {
-      const sk = createCard({as:'li',variant:'library'});
-      sk.classList.add('skeleton');
-      sk.setAttribute('aria-hidden', 'true');
-      items.push(sk);
-    }
+    const loading = createLibraryPart('li', 'empty-note');
+    loading.append(createLoading({text:t('loadingLibrary')}));
+    items.push(loading);
   }
   if (q && !shown.length) {
     const empty = createLibraryPart('li', 'empty-note');
-    empty.textContent = t('noMatches', { q: searchInput.value.trim() });
+    empty.append(createEmptyState({title:t('noMatches', { q: searchInput.value.trim() })}));
     items.push(empty);
   }
   coverCanvases.clear();
   songGridEl.replaceChildren(...items);
-  if (!songs.length && libraryState === 'ready') {const empty=createLibraryPart('li','empty-note');empty.textContent=pt(editable()?'emptyEditable':'emptyPieces');songGridEl.append(empty);}
+  if (!songs.length && libraryState === 'ready') {const empty=createLibraryPart('li','empty-note');empty.append(createEmptyState({title:pt(editable()?'emptyEditable':'emptyPieces')}));songGridEl.append(empty);}
   const count = countLabel(songs.length, 'arrangementsOne', 'arrangementsMany');
   libCountEl.textContent = !serverLibraryEnabled ? t('onThisDevice', { count }) : inPublicFolder() ? t('publicCount', { count }) : libraryState === 'ready' ? t('sharedWithChoir', { count }) : t('onThisDevice', { count });
   renderLibraryBanner();
@@ -1428,7 +1396,8 @@ const reorder = attachReorder(songGridEl, document.querySelector<HTMLElement>('.
     const places=ids.filter(id=>importedSongs.some(song=>song.id===id)).map((id,sortKey)=>({id,sortKey}));
     for(const place of places){const song=importedSongs.find(s=>s.id===place.id);if(song)song.order=place.sortKey;}
     importedSongs.sort((a,b)=>(a.order??0)-(b.order??0));
-    saveSongOrder(places).catch(err=>{toast(t('moveFailed',{msg:errorText(err)}),'error');location.reload();});
+    // Reload restores the server order; a persistent toast would disappear immediately.
+    saveSongOrder(places).catch(()=>location.reload());
   },
   onEnd: () => {
     if (songListStale) {
@@ -3965,9 +3934,11 @@ async function openAccountArea(anchor: HTMLElement) {
   remove.onclick = async () => {
     const plan = await api("/account/deletion");
     const sheet = createAccountPart("div", "body");
-    const note = createAccountPart("p", "note");
-    note.textContent = t("accountDeleteEnsembles");
-    sheet.append(note);
+    if (plan.deleteEnsembles.length) {
+      const note = createAccountPart("p", "note");
+      note.textContent = t("accountDeleteEnsembles");
+      sheet.append(note);
+    }
     for (const e of plan.deleteEnsembles) {
       const row = createAccountPart("p", "note");
       row.textContent = e.name;
@@ -3984,10 +3955,11 @@ async function openAccountArea(anchor: HTMLElement) {
     // The error belongs to the deletion sheet, outside the auth shell's selector scope.
     const inlineError = createStatus({variant:"account-delete",intent:"error",text:"",attrs:{role:"alert"}});
     sheet.append(inlineError);
-    const confirm = createButton({variant:"account-delete-confirm",text:t("accountDeleteConfirm"),disabled:!!plan.lastLead.length});
+    const confirm = createButton({variant:"standard",intent:"danger",text:t("accountDeleteConfirm"),disabled:!!plan.lastLead.length});
     confirm.onclick = async () => {
       if(leavingAccount)return;
       inlineError.textContent="";
+      updateField(passwordField,{error:undefined});
       leavingAccount=true;
       updateButton(confirm,{busy:true});
       leavePlaybackSession();
@@ -4006,7 +3978,10 @@ async function openAccountArea(anchor: HTMLElement) {
         updateButton(confirm,{busy:false});
         if((e as Error).message === "SESSION_EXPIRED") {location.replace("/?state=expired");return;}
         accountEvents.connect();
-        inlineError.textContent = (e as Error).message === "recent_auth_required" ? t("accountPasswordInvalid") : domainError((e as Error).message);
+        if ((e as Error).message === "recent_auth_required") {
+          updateField(passwordField,{error:t("accountPasswordInvalid")});
+          password.focus();
+        } else inlineError.textContent = domainError((e as Error).message);
       }
     };
     sheet.append(confirm);

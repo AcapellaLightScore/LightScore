@@ -106,7 +106,7 @@ export function createIconButton(options: IconButtonOptions) {
   });
   buttonState.set(button, {
     options: { ...options, variant: undefined },
-    icon: { variant: options.variant },
+    icon: { variant: options.variant, size: options.size },
   });
   button.className = r.withLayout(r.iconButtonRecipe(options), options.layout);
   button.dataset.ds = "icon-button";
@@ -214,6 +214,7 @@ export function updateField(
   const appearance = {
     ...prior,
     variant: options.variant ?? prior.variant,
+    density: options.density ?? prior.density,
     invalid: !!options.error || !!options.invalid,
   };
   const slots = r.fieldRecipe(appearance);
@@ -365,7 +366,7 @@ export function createCard(
 }
 export const createSurface = createCard;
 export function createBadge(
-  options: r.FeedbackOptions &
+  options: r.BadgeOptions &
     ElementOptions & {
       text: string;
     },
@@ -483,6 +484,7 @@ export function createDialog(options: DialogOptions) {
   const slots = r.dialogRecipe(options),
     dialog = element("dialog", slots.panel, undefined, options);
   dialog.dataset.ds = "dialog";
+  dialog.dataset.dialogLayout = options.variant === "transcription-review" ? "fullscreen" : "centered";
   const titleId = `ds-dialog-${++fieldId}-title`,
     bodyId = titleId + "-body";
   if (options.title && !dialog.hasAttribute("aria-label") && !dialog.hasAttribute("aria-labelledby"))
@@ -490,9 +492,7 @@ export function createDialog(options: DialogOptions) {
   dialog.setAttribute(
     "role",
     (options.attrs?.role as string) ??
-      (options.variant === "confirm" ||
-      options.variant === "admin-confirm" ||
-      options.variant === "admin-reason"
+      (options.variant === "confirm"
         ? "alertdialog"
         : "dialog"),
   );
@@ -524,15 +524,7 @@ export function createDialog(options: DialogOptions) {
     open: () =>
       (controller = openDialog(dialog, {
         ...options.behavior,
-        motion:
-          options.variant === "sheet" ||
-          options.variant === "domain-sheet" ||
-          options.variant === "library-sheet"
-            ? "sheet"
-            : options.variant === "library-popover" ||
-                options.variant === "library-prompt"
-              ? "panel"
-              : undefined,
+        motion: "panel",
         onClose: () => {
           options.behavior?.onClose?.();
           dialog.remove();
@@ -549,13 +541,21 @@ export const createSheet = ({
 }: Omit<DialogOptions, "variant"> & {
   variant?: "sheet" | "domain-sheet" | "library-sheet";
 }) => createDialog({ ...options, variant });
-export const createDrawer = (options: Omit<DialogOptions, "variant">) =>
-  createDialog({ ...options, variant: "drawer" });
-export const createConfirmDialog = (
-  options: Omit<DialogOptions, "variant"> & {
-    variant?: "confirm" | "admin-confirm" | "admin-reason";
-  },
-) => createDialog({ ...options, variant: options.variant ?? "confirm" });
+export interface ConfirmDialogOptions extends Omit<DialogOptions, "variant"> {
+  variant?: "confirm";
+  /** Prefer this generated action for irreversible confirmations; custom actions must set intent themselves. */
+  confirmAction?: { label: string; onConfirm: () => void };
+}
+export const createConfirmDialog = ({ confirmAction, ...options }: ConfirmDialogOptions) => {
+  const actions = document.createDocumentFragment();
+  if (options.actions) actions.append(options.actions);
+  if (confirmAction) actions.append(createButton({
+    text: confirmAction.label,
+    intent: options.destructive ? "danger" : "primary",
+    onClick: confirmAction.onConfirm,
+  }));
+  return createDialog({ ...options, actions, attrs: { ...options.attrs, role: "alertdialog" }, variant: options.variant ?? "confirm" });
+};
 export interface MenuItem {
   label: string;
   icon?: Node;
@@ -731,61 +731,6 @@ export function createTableParts(
     pagination: () => createTablePagination({ variant }),
     wrap: () => createTableWrap({ variant }),
   };
-}
-
-export function createWorkspace<K extends keyof HTMLElementTagNameMap = "div">(
-  options: ElementOptions & {
-    as?: K;
-    part: r.WorkspacePart;
-    text?: string;
-    content?: Node;
-  },
-) {
-  const node = element(
-    options.as ?? "div",
-    r.workspaceRecipe(options.part),
-    options.text,
-    options,
-  );
-  if (options.content) node.append(options.content);
-  return node;
-}
-export function createNavigationTabs(
-  options: ElementOptions &
-    r.NavigationOptions & {
-      label: string;
-      items: readonly { value: string; label: string; href: string }[];
-      value: string;
-      onNavigate?: (value: string) => void;
-    },
-) {
-  const slots = r.navigationRecipe(options),
-    nav = element("nav", slots.root, undefined, options);
-  nav.setAttribute("aria-label", options.label);
-  for (const item of options.items) {
-    const link = element(
-      "a",
-      slots.item(item.value === options.value),
-      item.label,
-    );
-    link.href = item.href;
-    if (item.value === options.value) link.setAttribute("aria-current", "page");
-    link.addEventListener("click", (event) => {
-      if (
-        options.onNavigate &&
-        !event.metaKey &&
-        !event.ctrlKey &&
-        !event.shiftKey &&
-        !event.altKey &&
-        event.button === 0
-      ) {
-        event.preventDefault();
-        options.onNavigate(item.value);
-      }
-    });
-    nav.append(link);
-  }
-  return nav;
 }
 
 /** Library composition slots share the same token/recipe boundary as controls. */

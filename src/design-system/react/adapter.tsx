@@ -21,7 +21,7 @@ import type {
 import { createPortal } from "react-dom";
 import type * as r from "../recipes";
 import type * as p from "../parts";
-import { openDialog, bindMenu, type DialogBehaviorOptions } from "../behavior";
+import { openDialog, bindMenu, anchorPopover, type DialogBehaviorOptions } from "../behavior";
 export { toast } from "../behavior";
 
 type Native<T> = Omit<T, "className" | "style"> & {
@@ -102,6 +102,11 @@ export interface DialogProps
   /** Static, nonmodal specimen for the dev showcase only. */
   specimen?: boolean;
 }
+export interface ConfirmDialogProps extends Omit<DialogProps, "variant"> {
+  variant?: "confirm";
+  /** Use the generated action to inherit deliberate danger treatment. */
+  confirmAction?: { label: string; onConfirm: () => void };
+}
 export interface MenuProps
   extends
     r.MenuOptions,
@@ -125,6 +130,7 @@ export function createReactAdapter(recipes: typeof import('../recipes/base'), pa
 
 function Button({
   variant,
+  size,
   intent,
   pressed,
   busy = false,
@@ -140,6 +146,7 @@ function Button({
       ref={ref}
       {...parts.buttonPart({
         variant,
+        size,
         intent,
         pressed,
         busy,
@@ -167,6 +174,7 @@ function Button({
 }
 function IconButton({
   variant,
+  size,
   label,
   layout,
   busy = false,
@@ -179,7 +187,7 @@ function IconButton({
     <button
       {...props}
       {...parts.buttonPart({
-        icon: { variant },
+        icon: { variant, size },
         pressed,
         busy,
         disabled: props.disabled,
@@ -210,8 +218,10 @@ function ControlGroup({ layout, ...props }: Native<HTMLAttributes<HTMLSpanElemen
   return <span {...props} data-ds="control-group" className={recipes.withLayout(recipes.controlGroupRecipe(), layout)} />;
 }
 const FieldVariant = createContext<r.FieldVariant | undefined>(undefined);
+const FieldDensity = createContext<r.FieldOptions["density"]>(undefined);
 function Input({
   variant,
+  density,
   invalid,
   layout,
   type = "text",
@@ -219,6 +229,8 @@ function Input({
 }: InputProps) {
   const inherited = useContext(FieldVariant);
   variant ??= inherited;
+  const inheritedDensity = useContext(FieldDensity);
+  density ??= inheritedDensity;
   invalid =
     invalid ??
     (props["aria-invalid"] !== undefined &&
@@ -228,13 +240,15 @@ function Input({
     <input
       {...props}
       type={type}
-      {...parts.controlPart("input", { variant, invalid, layout })}
+      {...parts.controlPart("input", { variant, density, invalid, layout })}
     />
   );
 }
-function Select({ variant, invalid, layout, ...props }: SelectProps) {
+function Select({ variant, density, invalid, layout, ...props }: SelectProps) {
   const inherited = useContext(FieldVariant);
   variant ??= inherited;
+  const inheritedDensity = useContext(FieldDensity);
+  density ??= inheritedDensity;
   invalid =
     invalid ??
     (props["aria-invalid"] !== undefined &&
@@ -243,18 +257,21 @@ function Select({ variant, invalid, layout, ...props }: SelectProps) {
   return (
     <select
       {...props}
-      {...parts.controlPart("select", { variant, invalid, layout })}
+      {...parts.controlPart("select", { variant, density, invalid, layout })}
     />
   );
 }
 function Textarea({
   variant,
+  density,
   invalid,
   layout,
   ...props
 }: TextareaProps) {
   const inherited = useContext(FieldVariant);
   variant ??= inherited;
+  const inheritedDensity = useContext(FieldDensity);
+  density ??= inheritedDensity;
   invalid =
     invalid ??
     (props["aria-invalid"] !== undefined &&
@@ -263,7 +280,7 @@ function Textarea({
   return (
     <textarea
       {...props}
-      {...parts.controlPart("textarea", { variant, invalid, layout })}
+      {...parts.controlPart("textarea", { variant, density, invalid, layout })}
     />
   );
 }
@@ -276,12 +293,13 @@ function Field({
   describedBy,
   children,
   variant,
+  density,
   invalid,
   layout,
 }: FieldProps) {
   const generated = useId();
   const controlId = id ?? generated;
-  const slots = recipes.fieldRecipe({ variant, invalid: !!error || invalid });
+  const slots = recipes.fieldRecipe({ variant, density, invalid: !!error || invalid });
   const description =
     [
       describedBy,
@@ -295,13 +313,13 @@ function Field({
       <label htmlFor={controlId} className={slots.label}>
         {label}
       </label>
-      <FieldVariant value={variant}>
+      <FieldVariant value={variant}><FieldDensity value={density}>
         {children({
           id: controlId,
           "aria-describedby": description,
           "aria-invalid": !!error || invalid || undefined,
         })}
-      </FieldVariant>
+      </FieldDensity></FieldVariant>
       {hint && (
         <p id={controlId + "-hint"} className={slots.hint}>
           {hint}
@@ -326,17 +344,18 @@ function FieldGroup({ variant, invalid, label, labelId: explicitLabelId, childre
     <div role="group" aria-labelledby={labelId}>{children}</div>
   </div>;
 }
-function Checkbox({ variant, label, layout, ...props }: CheckboxProps) {
-  const slots = recipes.checkboxRecipe({ variant });
+function Checkbox({ variant, density, label, layout, ...props }: CheckboxProps) {
+  const slots = recipes.checkboxRecipe({ variant, density });
   return (
     <label className={recipes.withLayout(slots.root, layout)}>
-      <input {...props} {...parts.checkboxPart({ variant })} />
+      <input {...props} {...parts.checkboxPart({ variant, density })} />
       <span>{label}</span>
     </label>
   );
 }
 function Switch({
   variant,
+  density,
   checked = false,
   label,
   layout,
@@ -347,7 +366,7 @@ function Switch({
   name,
   ...props
 }: SwitchProps) {
-  const slots = recipes.switchRecipe({ variant, checked });
+  const slots = recipes.switchRecipe({ variant, checked, density });
   if (mode === "checkbox")
     return (
       <label className={recipes.withLayout(slots.label, layout)}>
@@ -422,7 +441,7 @@ function Badge({
   variant,
   layout,
   ...props
-}: Native<HTMLAttributes<HTMLSpanElement>> & r.FeedbackOptions) {
+}: Native<HTMLAttributes<HTMLSpanElement>> & r.BadgeOptions) {
   return (
     <span
       {...props}
@@ -536,6 +555,7 @@ function ToggleGroup({
 }
 function Dialog({
   variant,
+  destructive,
   open,
   title,
   body,
@@ -560,7 +580,7 @@ function Dialog({
     if (!open || specimen || !ref.current) return;
     const active = openDialog(ref.current, {
       ...latest.current.behavior,
-      motion: variant === "sheet" || variant === "domain-sheet" || variant === "library-sheet" ? "sheet" : variant === "library-popover" || variant === "library-prompt" ? "panel" : undefined,
+      motion: "panel",
       onCancel: (reason) => {
         latest.current.behavior?.onCancel?.(reason);
         latest.current.onCancel?.(reason);
@@ -580,16 +600,17 @@ function Dialog({
     () => controller.current?.setBusy(!!behavior?.busy),
     [behavior?.busy],
   );
-  const slots = recipes.dialogRecipe({ variant });
+  const slots = recipes.dialogRecipe({ variant, destructive });
   const node = (
     <dialog
       {...props}
       ref={ref}
       open={specimen ? open : undefined}
       data-ds="dialog"
+      data-dialog-layout={variant === "transcription-review" ? "fullscreen" : "centered"}
       role={
         props.role ??
-        (variant === "confirm" || variant === "admin-confirm" || variant === "admin-reason"
+        (variant === "confirm"
           ? "alertdialog"
           : "dialog")
       }
@@ -624,11 +645,8 @@ function Dialog({
 const Sheet = ({variant="sheet",...props}: Omit<DialogProps, "variant"> & {variant?: "sheet"|"domain-sheet"}) => (
   <Dialog {...props} variant={variant} />
 );
-const Drawer = (props: Omit<DialogProps, "variant">) => (
-  <Dialog {...props} variant="drawer" />
-);
-const ConfirmDialog = ({variant="confirm",...props}: Omit<DialogProps, "variant"> & {variant?: "confirm"|"admin-confirm"|"admin-reason"}) => (
-  <Dialog {...props} variant={variant} />
+const ConfirmDialog = ({variant="confirm", confirmAction, actions, ...props}: ConfirmDialogProps) => (
+  <Dialog {...props} variant={variant} role="alertdialog" actions={<>{actions}{confirmAction && <Button intent={props.destructive ? "danger" : "primary"} onClick={confirmAction.onConfirm}>{confirmAction.label}</Button>}</>} />
 );
 function Menu({
   variant,
@@ -660,11 +678,6 @@ function Menu({
   );
   useEffect(() => {
     if (!open || !trigger) return;
-    ref.current
-      ?.querySelector<HTMLElement>(
-        '[role^="menuitem"]:not(:disabled):not([aria-disabled="true"])',
-      )
-      ?.focus();
     const outside = (event: PointerEvent) => {
       if (
         !ref.current?.contains(event.target as Node) &&
@@ -672,8 +685,19 @@ function Menu({
       )
         closeRef.current();
     };
+    ref.current?.showPopover?.();
+    const unplace = ref.current && triggerRef.current ? anchorPopover(ref.current, triggerRef.current, placement) : undefined;
+    ref.current
+      ?.querySelector<HTMLElement>(
+        '[role^="menuitem"]:not(:disabled):not([aria-disabled="true"])',
+      )
+      ?.focus();
     document.addEventListener("pointerdown", outside);
-    return () => document.removeEventListener("pointerdown", outside);
+    return () => {
+      unplace?.();
+      ref.current?.hidePopover?.();
+      document.removeEventListener("pointerdown", outside);
+    };
   }, [open, trigger]);
   const slots = recipes.menuRecipe({ variant });
   const list = (
@@ -683,6 +707,7 @@ function Menu({
       ref={ref}
       hidden={trigger ? !open : props.hidden}
       role="menu"
+      popover={trigger ? "manual" : undefined}
       aria-label={label}
       className={recipes.withLayout(slots.root, layout)}
     >
@@ -711,7 +736,7 @@ function Menu({
     </div>
   );
   return trigger ? (
-    <div className="ds-menu-anchor tw:relative tw:[&>[role=menu]]:absolute tw:[&>[role=menu]]:top-full tw:[&>[role=menu]]:left-flush tw:[&>[role=menu]]:z-menu tw:[&[data-placement=end]>[role=menu]]:left-auto tw:[&[data-placement=end]>[role=menu]]:right-flush" data-placement={placement}>
+    <div className="ds-menu-anchor tw:relative tw:[&>[role=menu]]:fixed tw:[&>[role=menu]]:inset-auto tw:[&>[role=menu]]:m-flush tw:[&>[role=menu]]:overflow-auto tw:[&>[role=menu]]:z-menu" data-placement={placement}>
       <Button
         ref={triggerRef}
         aria-haspopup="menu"
@@ -859,13 +884,5 @@ function TableWrap({
   );
 }
 
-/** Finite semantic composition slots, shared with DOM workspaces. */
-function Workspace({as: Tag = 'div', part, layout, ...props}: Native<HTMLAttributes<HTMLElement>> & {href?:string;as?: 'a'|'main'|'header'|'div'|'section'|'span'|'p'|'h1'|'h2'|'h3'|'dl'|'dt'|'dd'|'pre'|'strong'|'small'|'fieldset'|'legend'; part:r.WorkspacePart;ref?:Ref<any>}) {
-  return <Tag {...props} className={recipes.withLayout(recipes.workspaceRecipe(part),layout)}/>;
-}
-function NavigationTabs({label, items, value, onNavigate, variant, layout, ...props}: Native<HTMLAttributes<HTMLElement>> & r.NavigationOptions & {label:string;items:readonly {value:string;label:string;href:string}[];value:string;onNavigate?:(value:string)=>void}) {
-  const slots=recipes.navigationRecipe({variant});
-  return <nav {...props} aria-label={label} className={recipes.withLayout(slots.root,layout)}>{items.map(item=><a key={item.value} href={item.href} aria-current={value===item.value?'page':undefined} className={slots.item(value===item.value)} onClick={event=>{if(onNavigate&&!event.metaKey&&!event.ctrlKey&&!event.shiftKey&&!event.altKey&&event.button===0){event.preventDefault();onNavigate(item.value);}}}>{item.label}</a>)}</nav>;
-}
-return { Button, IconButton, ControlGroup, Input, Select, Textarea, Field, FieldGroup, Checkbox, Switch, Card, Surface, Badge, Toolbar, Status, Loading, EmptyState, ToggleGroup, Dialog, Sheet, Drawer, ConfirmDialog, Menu, Toast, Table, TableHeader, TableCell, TableRow, TableEmpty, TablePagination, TableWrap, Workspace, NavigationTabs };
+return { Button, IconButton, ControlGroup, Input, Select, Textarea, Field, FieldGroup, Checkbox, Switch, Card, Surface, Badge, Toolbar, Status, Loading, EmptyState, ToggleGroup, Dialog, Sheet, ConfirmDialog, Menu, Toast, Table, TableHeader, TableCell, TableRow, TableEmpty, TablePagination, TableWrap };
 }
