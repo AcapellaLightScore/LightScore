@@ -340,15 +340,15 @@ reorder decisions above.
 
 - Invitation limits use durable send-intent rows across every invitation state:
   five per recipient/ensemble in a rolling 24 hours, at least 60 seconds apart.
-  Ensemble and inviter budgets default to 50 and 100 per rolling day. Revoking,
+  Revoking,
   expiring, deleting an issuer, or recreating an invitation cannot reset history.
-  Expired pending invitations can renew once their window clears. Mutation and
-  ensemble-creation limits are DB-backed (120/minute and 10/rolling day by default).
+  Expired pending invitations can renew once their window clears.
+  AICAP-31 removes aggregate invitation, mutation and ensemble-creation quotas.
 - Body middleware bounds auth/settings requests at 16 KiB and score requests at
   SCORE_MAX_BYTES + 64 KiB before JSON parsing. The decoded score still has the
   SCORE_MAX_BYTES cap. Granular settings follow the client's boolean split map,
   treble/treble8/bass clefs, saved bpm/transpose/sections/played and percussion map;
-  values, keys, nesting and stored map counts are bounded.
+  values, keys and nesting are bounded; AICAP-31 removes stored map count caps.
 - Pending invitations are revoked atomically when their issuer loses authority,
   leaves, is removed, or closes their account. Acceptance independently checks
   issuer authority and clamps a manager's grants to none. Manager resends preserve
@@ -376,7 +376,8 @@ reorder decisions above.
   removal alone evicts. Library emission runs after commit in tracked background
   work, batches recipient membership/session checks, and logs transient failures
   without evicting sockets or changing the HTTP result. Version, metadata-op,
-  account deletion and bounded denied-mutation audits contain ids/op names only.
+  account deletion audits contain ids/op names only. AICAP-31 replaces ordinary
+  denied-mutation audits with metadata-only stdout events (ADR 0008).
 - Account closure computes sole-member ensembles under locks. DELETE requires an
   exact explicit `deleteEnsembleIds` list; mismatch returns 409 with current ids.
   Sole-member ensembles and their pieces are deleted. Last leads of shared
@@ -408,7 +409,8 @@ from fresh disposable DB/Mailpit/server, including the account-deletion sheet;
 `npm run db:generate` reported no schema changes. Regressions include chunked body
 limits, change-password token omission, post-commit emitter failure, transient
 socket membership reads, original-error preservation after rollback failure,
-issuer acceptance clamps, deny audits, creation/mutation/email budgets, stale
+issuer acceptance clamps, deny audits and creation/mutation/email budgets
+(the guessed usage budgets and deny audits were removed by AICAP-31), stale
 order/revision separation, legacy invitation budget backfill and pre-hijack
 password recovery. The migration conservatively ages legacy send counts from
 last_sent_at because older per-send instants were not stored. Windows are elapsed
@@ -716,10 +718,10 @@ Part A:
   password recovery. Built-start Playwright victim scenario resets an unknown
   attacker password and signs in with the recovered password. Existing real-auth
   reset coverage verifies email ownership and session revocation.
-- A-S1: process-global and per-user admission before bodyLimit/score body reads;
-  defaults 4/1 (`SCORE_UPLOAD_GLOBAL_MAX`, `SCORE_UPLOAD_USER_MAX`). Immediate
-  503/429 with Retry-After: 2; slots held through validation/persistence and
-  released in finally. Real streaming requests cover both limits and release.
+- A-S1: process-global admission before bodyLimit/score body reads;
+  default 4 (`SCORE_UPLOAD_GLOBAL_MAX`). Immediate 503 with Retry-After: 2;
+  slots held through validation/persistence and released in finally.
+  AICAP-31 removes the per-user upload quota.
 - A-S2: invalid percent encoding in score-title headers returns 422 invalid_text.
 - A-S3: separate verification/reset recipient intervals (60 s), rolling 24-hour
   recipient ceiling 100/kind, requester-IP share 5/kind/recipient. Suppressed
@@ -1383,8 +1385,8 @@ Phase 4a implementation details:
   callable in dev/tests. PostgreSQL `FOR UPDATE SKIP LOCKED`, timestamptz leases,
   heartbeat and claim tokens provide crash recovery without Redis. Pages within
   one job are sequential for previous-page context; different jobs run in
-  parallel. Admission is serialized per initiator and ensemble (2/4 active jobs
-  by default), with 2 globally active pages, a 20-second provider timeout and
+  parallel. AICAP-31 removes per-initiator/ensemble admission quotas (ADR 0008),
+  keeping 2 globally active pages, a 20-second provider timeout and
   at most 3 automatic attempts with capped exponential backoff. Upload admission
   uses the Phase 3b UploadSlots implementation and configured limits.
 - Every worker provider step rechecks the initiating user's current capability.
@@ -1524,8 +1526,7 @@ other than score-partwise/timewise.
 
 S4: object PUT precedes the short ensemble transaction, protected by a committed
 orphan outbox key; concurrent hash dedupe leaves redundant keys for cleanup.
-Original storage has an operational ceiling, TRANSCRIPTION_STORAGE_MAX_BYTES
-(default 5 GiB per ensemble), enforced under the lock; this is not a money budget.
+AICAP-31 removes the original storage ceiling and logs per-ensemble usage.
 Uploads allow 30 seconds idle and 10 minutes total; filenames strip bidi controls.
 
 S6: HEIC/HEIF and AVIF return unsupported_image_format; HEIC is not supported
@@ -1562,7 +1563,7 @@ check; lack of Python/seccomp fails closed. Size the service memory and upload
 concurrency to leave parent-process headroom alongside these per-child limits.
 
 The full integration pass exposed a test setup error: two same-account uploads
-correctly hit per-user upload admission. The dedupe race now uses two authorized
+used the former per-user upload admission. The dedupe race uses two authorized
 accounts uploading a fresh identical hash, exercising concurrent insertion while
 preserving the intended admission limit.
 
@@ -1973,8 +1974,8 @@ verification. No paid requests, deployment, push or production access.
   retain the complete report and canonical MusicXML. Listen opens a temporary,
   unsaved Solo score with persistence controls disabled. Import is pending-guarded
   and server-idempotent, preserves the optional title and opens the library piece.
-- Minimal server additions: capability-gated ensemble job read model (most recent
-  100 jobs), bounded private source-page PNG endpoint (read audits retired by ADR 0007) using the existing
+- Minimal server additions: capability-gated ensemble job read model (AICAP-31 replaces the newest-100 cutoff
+  with cursor pagination, ADR 0008), bounded private source-page PNG endpoint (read audits retired by ADR 0007) using the existing
   sandbox renderer and upload admission, optional title and la/other language
   values on job creation, and import title from captured job options. The API
   Dockerfile now installs Poppler for on-demand PDF comparison. No schema changes.
@@ -2051,8 +2052,8 @@ The following supersedes the earlier metric and remaining-work descriptions.
   unpriced_calls retain partial knowledge; totals/averages remain null if any
   attempt is unpriced. Numeric JSON aggregates are numbers. Job metrics expose
   null estimatedCost plus costUnknown/unpricedCalls, never unknown-as-zero.
-- E7: migration 0011 adds started_at and (model,started_at) indexes; usage rejects
-  ranges over 366 elapsed days with a 422 response explaining the limit.
+- E7: migration 0011 adds started_at and (model,started_at) indexes. AICAP-31
+  removes the admin usage-range ceiling.
 - E8: usage uses the same strict offset-aware Zod ISO validation as /metrics;
   impossible dates and naive/reversed ranges fail.
 - E9: real usageSQL tests exercise both DST transitions, distinct 2/3-second
@@ -2518,7 +2519,7 @@ page previews) add no audit rows. Existing historical rows are preserved. Mutati
 and CLI auditing retain atomic commit/savepoint behavior (ADR 0002). Content and
 download actions still require reasons and share 10/min, 30/hour and 200/day
 persistent caps, with clear 429 messages. The existing server logger emits
-`admin.content_access` (reason and target) and `admin.cap_hit` (cap metadata) as
+`admin.content_access` (reason and target) and `limit.hit` (cap metadata) as
 structured UTC stdout for Grafana; no infrastructure is provisioned. See
 [ADR 0007](adr/0007-admin-audit-scope-and-read-limits.md) and SYSADMIN.md.
 The audit UI retains ensemble scope and safe mutation-reason excerpts.
@@ -3001,7 +3002,8 @@ tables and keep membership permissions, Save and Remove within 390 px. The
 browser journey verifies full pagination, exact sort order, page resets, keyboard
 activation, page-2 refreshes and completed screenshots. Backend regressions also
 cover IDOR, stale DELETE/role writes, unchanged rejected state, unverified admins
-and stored audit metadata. Origin-rejection audit writes are rate limited. ADR 0002
+and stored audit metadata. AICAP-31 replaces Origin-rejection audit writes with metadata-only stdout
+events; no audit-row budget remains (ADR 0008). ADR 0002
 is unchanged. Final same-commit check results and per-finding commit/test mapping
 are in `/tmp/aicap-admin/report.md` under “Review fixes”.
 

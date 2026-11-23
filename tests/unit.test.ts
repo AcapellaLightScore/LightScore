@@ -277,20 +277,74 @@ it('delays restart reconnects and cancels reconnect on disposal',async()=>{
 });
 
 it('admin operational logs use structured stdout and retain only explicit fields', async () => {
-  const { logAdminContentAccess, logAdminCapHit, withRequestLog } = await import('../server/logger.server');
+  const { logAdminContentAccess, logLimitHit, withRequestLog } = await import('../server/logger.server');
   const capture = vi.spyOn(console, 'log').mockImplementation(() => {});
   try {
     withRequestLog('admin-request-1', () => {
       logAdminContentAccess('actor-1', 'original', 'object-1', 'Support case\nsecond line');
-      logAdminCapHit('actor-1', 'content-hour', 30, 3600000);
+      logLimitHit('admin.content_hour', 'user', 30, '/api/admin/pieces/:id/content');
     });
     const [access, cap] = capture.mock.calls.map(call => JSON.parse(String(call[0])));
     expect(access).toEqual({ timestamp: expect.stringMatching(/Z$/), level: 'info', event: 'admin.content_access', requestId: 'admin-request-1',
       actor: 'actor-1', targetType: 'original', targetId: 'object-1', reason: 'Support case\nsecond line' });
-    expect(cap).toEqual({ timestamp: expect.stringMatching(/Z$/), level: 'warn', event: 'admin.cap_hit', requestId: 'admin-request-1',
-      actor: 'actor-1', kind: 'content-hour', max: 30, windowMs: 3600000 });
+    expect(cap).toEqual({ timestamp: expect.stringMatching(/Z$/), level: 'warn', event: 'limit.hit', limit: 'admin.content_hour', scope: 'user', value: 30, route: '/api/admin/pieces/:id/content' });
     expect(String(capture.mock.calls[0][0]).split('\n')).toHaveLength(1);
   } finally {
     capture.mockRestore();
   }
+});
+
+
+it('accepts overlapping uploads by one user until the global capacity', async()=>{
+ const {UploadSlots}=await import('../server/upload-slots.server');const slots=new UploadSlots(4);
+ for(let i=0;i<4;i++)expect('release' in slots.take('same')).toBe(true);
+ expect(slots.take('same')).toEqual({code:503});
+});
+it('limit hits have one redacted stdout record per request',async()=>{
+ const {logLimitHit,withLimitRequest}=await import('../server/logger.server');
+ const output=vi.spyOn(console,'log').mockImplementation(()=>{});
+ try{
+  withLimitRequest('/api/ensembles/alice@example.com/invitations/private-token?email=alice@example.com',()=>{
+   logLimitHit('invitation.recipient_day','ensemble',5);logLimitHit('other','user',1);
+  });
+  expect(output).toHaveBeenCalledTimes(1);
+  const record=JSON.parse(output.mock.calls[0][0]);
+  expect(record).toMatchObject({event:'limit.hit',limit:'invitation.recipient_day',scope:'ensemble',value:5,route:'/api/ensembles/:id/invitations/:id'});
+  expect(Object.keys(record).sort()).toEqual(['timestamp','level','event','limit','scope','value','route'].sort());
+  expect(JSON.stringify(record)).not.toMatch(/alice|private-token|email=/);
+  expect(record.timestamp).toMatch(/Z$/);
+ }finally{output.mockRestore();}
+});
+
+it('saved settings and reorder schemas rely on body bounds instead of count quotas',async()=>{
+ const {settingsInput,reorderInput}=await import('../src/api/domain');
+ expect(settingsInput.safeParse({op:'saved',key:'sections',value:Array.from({length:1001},()=>({label:'',beat:0}))}).success).toBe(true);
+ expect(settingsInput.safeParse({op:'defaults',key:'percussion',value:Object.fromEntries(Array.from({length:257},(_,i)=>['p'+i,true]))}).success).toBe(true);
+ expect(reorderInput.safeParse({pieceIds:Array(10001).fill('p'),expectedOrder:Array(10001).fill('p')}).success).toBe(true);
+});
+
+it('does not invent a route outside request context',async()=>{
+ const {logLimitHit}=await import('../server/logger.server');const out=vi.spyOn(console,'log').mockImplementation(()=>{});
+ try{logLimitHit('render.pixels','server',40000000);expect(JSON.parse(out.mock.calls[0][0]).route).toBe('unknown');}finally{out.mockRestore();}
+});
+it('validation logs stable field names and ignores numeric UI ranges',async()=>{
+ const {z}=await import('zod');const {logValidationLimit,withLimitRequest}=await import('../server/logger.server');
+ const out=vi.spyOn(console,'log').mockImplementation(()=>{});
+ try{
+  for(const [field,name,max] of [['name','name',200],['title','title',200],['label','label',200],['idempotencyKey','idempotency_key',200],['reason','admin_reason',1000],['cursor','admin_cursor',2048]] as const){
+   const result=z.object({[field]:z.string().max(max)}).safeParse({[field]:'x'.repeat(max+1)});
+   withLimitRequest('/api/ensembles/private-token',()=>logValidationLimit(result.error));
+   expect(JSON.parse(out.mock.calls.at(-1)![0])).toMatchObject({event:'limit.hit',limit:'input.'+name,scope:'server',value:max,route:'/api/ensembles/:id'});
+  }
+  const before=out.mock.calls.length;
+  for(const field of ['bpm','transpose','limit'])logValidationLimit(z.object({[field]:z.number().max(1)}).safeParse({[field]:2}).error);
+  expect(out.mock.calls).toHaveLength(before);
+ }finally{out.mockRestore();}
+});
+
+it('classifies only sharp input-pixel overflow as render.pixels',async()=>{
+ const {renderFailureExit}=await import('../server/render-failure.mjs');
+ expect(renderFailureExit({message:'Input image exceeds pixel limit'})).toBe(66);
+ expect(renderFailureExit({message:'unsupported pixel format'})).toBe(65);
+ expect(renderFailureExit({message:'pixel decoder failed',code:'ENOENT'})).toBe(70);
 });

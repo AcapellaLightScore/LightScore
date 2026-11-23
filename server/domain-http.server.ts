@@ -1,3 +1,5 @@
+import { SCORE_JSON_DEPTH, PASSWORD_CONFIRM_ATTEMPTS, INVITATION_RECIPIENT_MINUTE, INVITATION_RECIPIENT_DAY, INVITATION_EXPIRY_SECONDS } from './protective-limits.mjs';
+import { logRejectedRequest, logLimitHit, logValidationLimit } from './logger.server';
 import { lockPlatformRoles } from './platform-role.server';
 import { insertVersion } from "./migration-content.server";
 import { pieceTitle } from '../src/api/title';
@@ -42,7 +44,7 @@ export const domain = new Hono<{
 import { clock } from "./clock.server";
 export { clock } from "./clock.server";
 function canonicalJSON(value: unknown, depth = 0): string {
-  if (depth > 64) throw new DomainError("nesting_limit", 422);
+  if (depth > SCORE_JSON_DEPTH) throw new DomainError("nesting_limit", 422);
   if (Array.isArray(value))
     return "[" + value.map((v) => canonicalJSON(v, depth + 1)).join(",") + "]";
   if (value && typeof value === "object")
@@ -68,7 +70,7 @@ async function readBody(req: { json: () => Promise<unknown> }) {
   const stack: [unknown, number][] = [[value, 0]];
   while (stack.length) {
     const [v, depth] = stack.pop()!;
-    if (depth > 64) throw new DomainError("nesting_limit", 422);
+    if (depth > SCORE_JSON_DEPTH) throw new DomainError("nesting_limit", 422);
     if (typeof v === "string" && (v.includes("\0") || !v.isWellFormed())) throw new DomainError("invalid_text", 422);
     if (v && typeof v === "object")
       for (const [key,child] of Object.entries(v)) {if((key.includes("\0") || !key.isWellFormed())) throw new DomainError("invalid_text",422);stack.push([child, depth + 1]);}
@@ -87,7 +89,7 @@ async function limit(
     `insert into rate_limit(key,count,last_request) values($1,1,$2) on conflict(key) do update set count=case when rate_limit.last_request <= $2-$3 then 1 else rate_limit.count+1 end,last_request=case when rate_limit.last_request <= $2-$3 then $2 else rate_limit.last_request end returning count`,
     [key, now, window],
   );
-  if (r.rows[0].count > max) throw new DomainError("rate_limited", 429);
+  if (r.rows[0].count > max) { logLimitHit("account.delete_password", "user", max); throw new DomainError("rate_limited", 429); }
 }
 async function invitationBudget(
   db: PoolClient,
@@ -102,18 +104,13 @@ async function invitationBudget(
     since = new Date(now.getTime() - 86400000);
   const r = (
     await db.query(
-      `select count(*) filter(where ensemble_id=$1 and email=$2)::int as recipient, max(created_at) filter(where ensemble_id=$1 and email=$2) as last, count(*) filter(where ensemble_id=$1)::int as ensemble, count(*) filter(where inviter_id=$3)::int as inviter from invitation_sends where created_at > $4 and (ensemble_id=$1 or inviter_id=$3)`,
-      [e, email, u, since],
+      `select count(*)::int as recipient, max(created_at) as last from invitation_sends where ensemble_id=$1 and email=$2 and created_at > $3`,
+      [e, email, since],
     )
   ).rows[0];
   if (r.last && now.getTime() - new Date(r.last).getTime() < 60000)
-    throw new DomainError("send_cooldown", 429);
-  if (r.recipient >= 5) throw new DomainError("send_limit", 429);
-  if (
-    r.ensemble >= env.INVITE_ENSEMBLE_DAILY_MAX ||
-    r.inviter >= env.INVITE_USER_DAILY_MAX
-  )
-    throw new DomainError("send_daily_limit", 429);
+    { logLimitHit("invitation.recipient_minute", "ensemble", INVITATION_RECIPIENT_MINUTE); throw new DomainError("send_cooldown", 429); }
+  if (r.recipient >= INVITATION_RECIPIENT_DAY) { logLimitHit("invitation.recipient_day", "ensemble", INVITATION_RECIPIENT_DAY); throw new DomainError("send_limit", 429); }
   await db.query(
     "insert into invitation_sends(ensemble_id,email,inviter_id,created_at) values($1,$2,$3,$4)",
     [e, email, u, now],
@@ -201,22 +198,14 @@ const inviteView = (i: Record<string, unknown>) => ({
   capabilities: caps(i),
 });
 domain.onError(async (error, c) => {
+  logValidationLimit(error);
   if (
     error instanceof DomainError &&
     [403, 404].includes(error.status) &&
     !["GET", "HEAD"].includes(c.req.method) &&
     c.get("user")
   ) {
-    try {
-      await limit(pool, "denied-audit:" + c.get("user").id, 10, 60000);
-      await pool.query(
-        "insert into audit_events(actor_id,action,target_id,outcome) values($1,'domain.mutation',$2,'denied')",
-        [c.get("user").id, c.req.param("ensemble") ?? null],
-      );
-    } catch (auditError) {
-      if (!(auditError instanceof DomainError))
-        logError("audit.denied", auditError);
-    }
+    logRejectedRequest("domain.denied", c.req.routePath);
   }
   if (error instanceof DomainError)
     return c.json(
@@ -259,8 +248,6 @@ domain.use("*", async (c, next) => {
   const s = await currentSession(c.req.raw.headers);
   if (!s?.user.emailVerified) return c.json({ code: "SESSION_EXPIRED" }, 401);
   c.set("user", s.user);
-  if (!["GET", "HEAD", "OPTIONS"].includes(c.req.method))
-    await limit(pool, "domain:" + s.user.id, env.DOMAIN_USER_MINUTE_MAX, 60000);
   await next();
 });
 domain.get("/ensembles", async (c) => {
@@ -286,12 +273,6 @@ domain.post("/ensembles", async (c) => {
     await db.query("select pg_advisory_xact_lock(hashtextextended($1,0))", [
       u.id,
     ]);
-    await limit(
-      db,
-      "ensemble-create:" + u.id,
-      env.ENSEMBLE_USER_DAILY_MAX,
-      86400000,
-    );
     const e = (
       await db.query(
         "insert into ensembles(name,kind) values($1,$2) returning *",
@@ -458,7 +439,7 @@ domain.delete("/account", async (c) => {
   {
     const failureKey = "account-password:" + u.id;
     const failures = (await pool.query("select count,last_request from rate_limit where key=$1", [failureKey])).rows[0];
-    if (failures && failures.count >= 5 && Number(failures.last_request) > clock.now().getTime()-900000) throw new DomainError("rate_limited", 429);
+    if (failures && failures.count >= PASSWORD_CONFIRM_ATTEMPTS && Number(failures.last_request) > clock.now().getTime()-900000) { logLimitHit("account.delete_password", "user", PASSWORD_CONFIRM_ATTEMPTS); throw new DomainError("rate_limited", 429); }
     const credential = (
       await pool.query(
         "select password from account where user_id=$1 and provider_id='credential'",
@@ -473,7 +454,7 @@ domain.delete("/account", async (c) => {
         password: input.password,
       }))
     )
-      { await limit(pool, failureKey, 5, 900000); throw new DomainError("recent_auth_required", 401); }
+      { await limit(pool, failureKey, PASSWORD_CONFIRM_ATTEMPTS, 900000); throw new DomainError("recent_auth_required", 401); }
     await pool.query("delete from rate_limit where key=$1", [failureKey]);
   }
   await transaction(async (db) => {
@@ -630,7 +611,7 @@ export async function createInvitation(db: PoolClient, e: string, u: {id:string}
       ])
     ).rows[0];
     const raw = randomBytes(32).toString("base64url"),
-      expiry = new Date(clock.now().getTime() + 14 * 86400000);
+      expiry = new Date(clock.now().getTime() + INVITATION_EXPIRY_SECONDS * 1000);
     const i = (
       await db.query(
         `insert into invitations(ensemble_id,email,inviter_id,token_hash,expires_at,manage_members,edit_music_pieces,ai_transcription,language,request_key,send_count,last_sent_at,admin_issued) values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,1,$11,$12) on conflict(ensemble_id,email) where state='pending' do update set token_hash=excluded.token_hash,expires_at=excluded.expires_at,inviter_id=excluded.inviter_id,manage_members=excluded.manage_members,edit_music_pieces=excluded.edit_music_pieces,ai_transcription=excluded.ai_transcription,language=excluded.language,request_key=excluded.request_key,delivery_state='not_sent',send_count=invitations.send_count+1,last_sent_at=excluded.last_sent_at,admin_issued=excluded.admin_issued returning *`,
@@ -723,7 +704,7 @@ domain.post(
             "update invitations set token_hash=$1,expires_at=$2,request_key=$3,delivery_state='not_sent',send_count=send_count+1,last_sent_at=$4 where id=$5 returning *",
             [
               hash(raw),
-              new Date(clock.now().getTime() + 14 * 86400000),
+              new Date(clock.now().getTime() + INVITATION_EXPIRY_SECONDS * 1000),
               JSON.stringify([idempotencyKey]),
               clock.now(),
               i.id,
@@ -818,7 +799,7 @@ domain.post("/invitations/:token/accept", async (c) => {
         return memberView(m);
       }
       const state = inviteState(i);
-      if (state !== "pending") throw new DomainError(String(state), 409);
+      if (state !== "pending") {if(state==="expired")logLimitHit("invitation.expiry","ensemble",INVITATION_EXPIRY_SECONDS);throw new DomainError(String(state), 409); }
       const issuer = (
         await db.query(
           "select * from memberships where ensemble_id=$1 and user_id=$2",
@@ -867,7 +848,7 @@ async function metadata(db: Pick<PoolClient, "query">, e: string, id: string) {
   return row;
 }
 async function content(input: { format: "score" | "musicxml"; body: string }) {
-  if (Buffer.byteLength(input.body) > env.SCORE_MAX_BYTES) throw new DomainError("score_too_large", 413);
+  if (Buffer.byteLength(input.body) > env.SCORE_MAX_BYTES) {logLimitHit("score.bytes","server",env.SCORE_MAX_BYTES);throw new DomainError("score_too_large", 413); }
   return validateScore(input.body, input.format, true);
 }
 async function upload(req: { header: (name: string) => string | undefined; text: () => Promise<string> }) {
@@ -1028,14 +1009,6 @@ domain.patch("/ensembles/:ensemble/pieces/:piece", async (c) => {
         current.revision !== input.expectedRevision)
     )
       throw new DomainError("revision_conflict", 409, current);
-    if (input.key && input.value !== null) {
-      const existing = current.settings;
-      const keys = Object.values(existing).flatMap((v) =>
-        v && typeof v === "object" ? Object.keys(v) : [],
-      );
-      if (keys.length >= 1024 && !keys.includes(input.key))
-        throw new DomainError("settings_limit", 422);
-    }
     const columns = {
       partName: "part_names",
       clef: "clef_overrides",
