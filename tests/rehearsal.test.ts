@@ -273,11 +273,30 @@ it('engine late join skips expired pre-roll and schedules at integrated score po
 it('engine fills repeated tempo-map loop windows and avoids retriggering held notes on refill',()=>{
  const {engine,note}=fakeSharedEngine();const now=performance.timeOrigin+performance.now();
  engine.scheduleShared({...s,status:'playing',anchor:{beat:2,serverTime:now+400},effectiveAt:now+400,loop:{enabled:true,startBeat:2,endBeat:6}},t,now,0,[]);
- expect(note.mock.calls.length).toBeGreaterThanOrEqual(2);
+ // The lookahead is four seconds (AICAP-32): the first pass of the loop is laid at once, the
+ // second when a refill brings it into the lookahead -- once, however often it is refilled.
+ expect(note.mock.calls.length).toBe(1);
+ engine.tick();expect(note.mock.calls.length).toBe(1);
+ (engine as unknown as {ctx:{currentTime:number}}).ctx.currentTime+=2;
+ engine.tick();expect(note.mock.calls.length).toBe(2);
  const first=note.mock.calls[0][1],second=note.mock.calls[1][1];
  expect(second-first).toBeCloseTo(3,2);
- const before=note.mock.calls.length;
- engine.tick();expect(note.mock.calls.length).toBe(before);
+ engine.tick();expect(note.mock.calls.length).toBe(2);
+});
+it('engine lays every note once, a little per tick, also where the score is out of order (swing) or malformed',()=>{
+ const {engine,note}=fakeSharedEngine();
+ // As swing leaves them: b + 5/8 sounds at b + 3/4, after the triplet written behind it at b + 2/3.
+ const starts=[0,.5,.75,2/3,1,Number.NaN,2,3.75,3+2/3,4,5.5,5.25,7,9,9.75,9+2/3,12];
+ Object.assign(engine,{score:{notes:starts.map((startBeat,i)=>({partId:'a',startBeat,durationBeats:.25,midi:60+i})),totalBeats:16},metronomeEnabled:false,layToken:0});
+ engine.play(0,60,0);
+ const at=10.06,ctx=(engine as unknown as {ctx:{currentTime:number}}).ctx;
+ // Play lays three seconds, no more.
+ expect(note.mock.calls.map(c=>c[3]).sort((a,b)=>a-b)).toEqual([60,61,62,63,64,66]);
+ for(let i=0;i<80;i++){ctx.currentTime+=.2;engine.tick();}
+ const laid=note.mock.calls.map(c=>[c[3],Number((c[1]-at).toFixed(4))]).sort((a,b)=>a[0]-b[0]);
+ expect(laid).toEqual(starts.map((b,i)=>[60+i,Number(b.toFixed(4))]).filter(([,b])=>Number.isFinite(b)));
+ // Never late: each was laid before its time.
+ expect(note.mock.calls.every(c=>c[1]>=at)).toBe(true);
 });
 it('whole-piece loop sends explicit bounds required by the existing controller',()=>{
  expect(preferenceCommands({loopEnabled:true},s,16)).toEqual([{type:'setLoop',pieceId:'piece',versionNo:1,enabled:true,startBeat:0,endBeat:16}]);
