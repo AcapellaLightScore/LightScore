@@ -1,6 +1,6 @@
 /** Keep a persistent notice between the player header and its variable-height footer.
- * The numbered voice key can wrap below the transport; viewport offsets alone cannot
- * describe that space. Geometry stays local, as it does for anchored popovers.
+ * The footer (info row and transport) changes height with the layout; viewport offsets
+ * alone cannot describe that space. Geometry stays local, as it does for anchored popovers.
  */
 export function placePlayerNotice(notice: HTMLElement, player: HTMLElement) {
   const view = notice.ownerDocument.defaultView!;
@@ -32,12 +32,12 @@ export function placePlayerNotice(notice: HTMLElement, player: HTMLElement) {
   };
   const observer = new ResizeObserver(schedule);
   const observeLayout = () => {
-    footer = [...player.querySelectorAll<HTMLElement>(".info-row,.transport,[data-voice-key]")];
+    footer = [...player.querySelectorAll<HTMLElement>(".info-row,.transport")];
     observer.disconnect();
     for (const element of [player, ...footer, ...header]) observer.observe(element);
   };
-  // Opening another piece replaces the direct-child voice key. Avoid observing the
-  // playing position's text updates: only structural player children matter here.
+  // Re-observe when the player's direct children change. Avoid observing the playing
+  // position's text updates: only structural player children matter here.
   const children = new MutationObserver(() => { observeLayout(); schedule(); });
   children.observe(player, { childList: true });
   observeLayout();

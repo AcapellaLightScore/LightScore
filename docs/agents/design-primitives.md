@@ -139,7 +139,7 @@ stay within the active panel; field errors use Field's adjacent error slot. Stat
 
 The power hint is an actionable persistent notice (D15), with Got it and Don't show again
 choices. Its design-system `placePlayerNotice` behavior measures the visible info row,
-transport and numbered voice key, keeping the note above them as the footer wraps or the
+and transport, keeping the note above them as the footer wraps or the
 viewport rotates. On short screens its content scrolls between the header and footer.
 `scripts/browser-power-hint.mjs` checks actual populated-player geometry and pointer opening
 of controls at the sync-suite sizes plus desktop, tablet, phone and short landscape sizes
@@ -347,7 +347,7 @@ Add a theme through one complete token block and one registry entry. Run
 
 **D26 interim.** Until room permissions are designed separately, the EN/DE introduction describes the current Together behavior: everyone controls shared playback on every device; volume, mute and solo remain personal. It promises no missing “take the lead” command and introduces no new session permissions.
 
-**D42 A (D21 approved).** The selected extension supplies colors 9–16 and stable numbered names in voice controls, score labels and the accessible key. The first eight palette roles and small-score spacing remain. D43’s Parchment green change still awaits comparison approval. See the applied decisions in [the design-system guide](design-system.md) for persistence and renderer boundaries.
+**D42 A (D21 approved), numbers retired by D50.** The selected extension supplies colors 9–16; the stored voice numbers keep those colours stable but are no longer shown (D50). The first eight palette roles and small-score spacing remain. D43’s Parchment green change still awaits comparison approval. See the applied decisions in [the design-system guide](design-system.md) for persistence and renderer boundaries.
 
 ### Responsive regression checks
 

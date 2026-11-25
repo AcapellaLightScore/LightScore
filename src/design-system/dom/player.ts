@@ -3,8 +3,6 @@ import {
   playerGlyphRecipe,
   transportRecipe,
   voiceRowRecipe,
-  voiceNumberRecipe,
-  voiceKeyRecipe,
   type PlayerPart,
 } from "../recipes";
 import {
@@ -38,7 +36,6 @@ export function createPlayerPart<K extends keyof HTMLElementTagNameMap>(
 }
 export function createVoiceRow(options: {
   partId: string;
-  voiceNumber?: number;
   name: string;
   color: string;
   onlyHint: string;
@@ -61,7 +58,6 @@ export function createVoiceRow(options: {
       options.name.length > 13 ? "player-voice-name-long" : "player-voice-name",
     attrs: { title: options.onlyHint },
   });
-  if (options.voiceNumber) name.prepend(voiceBadge(options.voiceNumber));
   row.append(light, name);
   for (const [mix, text, label, variant] of [
     ["muted", "M", options.muteLabel, "player-mute"],
@@ -88,7 +84,6 @@ export function createVoiceRow(options: {
 }
 export function createVoiceChip(options: {
   partId: string;
-  voiceNumber?: number;
   name: string;
   color: string;
   title: string;
@@ -102,7 +97,6 @@ export function createVoiceChip(options: {
   const dot = document.createElement("i");
   dot.setAttribute("aria-hidden", "true");
   chip.append(dot);
-  if (options.voiceNumber) chip.append(voiceBadge(options.voiceNumber));
   chip.append(document.createTextNode(options.name));
   return chip;
 }
@@ -147,17 +141,4 @@ export function createTransport(options: {
   right.append(...options.controls);
   transport.append(options.position, center, right);
   return transport;
-}
-
-function voiceBadge(number: number) {
-  return playerElement("span", voiceNumberRecipe, {text:String(number),attrs:{"data-voice-number":number}});
-}
-export function createVoiceKey(label: string, voices: {id:string;name:string;voiceNumber?:number;color:string}[], inspect: (id:string)=>void) {
-  const key = playerElement("div", voiceKeyRecipe, {attrs:{role:"group","aria-label":label,"data-voice-key":true}});
-  for (const voice of voices) {
-    const chip = createVoiceChip({partId:voice.id,name:voice.name,voiceNumber:voice.voiceNumber,color:voice.color,title:voice.name});
-    chip.addEventListener('click',event=>{event.stopPropagation();inspect(voice.id);});
-    key.append(chip);
-  }
-  return key;
 }

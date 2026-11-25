@@ -313,7 +313,7 @@ jobs:
           BROWSER_SCRIPT: scripts/browser-player-regressions.mjs
           NODE_OPTIONS: --import=./scripts/ops-playwright-evidence.mjs
         run: node scripts/ci/run-suite.mjs --id player-regressions --title 'Player regressions' --repro 'BROWSER_SCRIPT=scripts/browser-player-regressions.mjs npm run test:browser' -- npm run test:browser
-      - name: Owner decisions — voice numbers, mixer and full titles (browser-owner-decisions)
+      - name: Owner decisions — voices, mixer and full titles (browser-owner-decisions)
         if: ${{ !cancelled() && steps.ready.outcome == 'success' }}
         env:
           BROWSER_SCRIPT: scripts/browser-owner-decisions.mjs

@@ -120,3 +120,5 @@ retained parity variants, guard exceptions and verification limitations.
 **D46 A.** Keep the existing 2× canvas backing resolution cap for playback performance; no renderer resolution change.
 
 **D47 B.** The library menu title is “Settings” / “Einstellungen”; language remains one setting within it.
+
+**D50 (owner, supersedes D42's visible numbers).** Voices are known by name and colour again, as in the prototype: no number badges in voice rows, chips, the mixer, staff labels, roll notes or overview callouts, and no separate voice key. `formatDefaults.voiceNumbers` is still stored; it keeps the colours of voices 9–16 stable through rename, reorder and removal. On wide screens worked with a mouse alone (the `desk` variant, the complement of `touch`) a voice row is one line again: light, name, M, S, ⋯ (`voice-compact` / `voice-actions` columns, 14px · 1fr · 34px · 34px · 28px). Touch devices and widths ≤900px keep the two-line rows with 44px targets.

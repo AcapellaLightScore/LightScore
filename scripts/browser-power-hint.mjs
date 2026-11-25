@@ -79,7 +79,7 @@ try {
         return { hint: rect(hint), controls };
       });
       const overlaps = geometry.controls.filter(r => geometry.hint.left < r.right && geometry.hint.right > r.left && geometry.hint.top < r.bottom && geometry.hint.bottom > r.top);
-      assert.ok(geometry.controls.length > 10, 'Use a populated player, including the numbered voice key');
+      assert.ok(geometry.controls.length > 10, 'Use a populated player, including every voice row');
       measurements.push({ theme, language, width, height, ...geometry, overlaps });
       if (!overlaps.length) {
         assert.ok(geometry.hint.top >= 0 && geometry.hint.bottom <= height, 'Hint remains within the viewport');

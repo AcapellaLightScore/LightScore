@@ -188,11 +188,10 @@ describe('D42 approved extended voice palette', () => {
     if(theme==='parchment')expect(normalizeColor(value('voice-4')).css).toBe(normalizeColor('#5A8A2A').css);
   });
   it('preserves identity through rename, reorder, removal, restoration and newly split parts', async () => {
-    const {assignVoiceNumbers,voiceLabel}=await import('../src/voiceIdentity');
+    const {assignVoiceNumbers}=await import('../src/voiceIdentity');
     const parts=[{id:'s',name:'Soprano'},{id:'b',name:'Bass'}];
     const stored=assignVoiceNumbers(parts);const renamed=[{id:'b',name:'Basso'},{id:'s',name:'Sopran'}];
     expect(assignVoiceNumbers(renamed,stored)).toEqual(stored);
-    expect(voiceLabel(renamed[0])).toBe('2 · Basso');
     const next=assignVoiceNumbers([{id:'s',name:'Sopran'},{id:'s-staff1',name:'Left hand'}],stored);
     expect(next).toEqual({s:1,b:2,'s-staff1':3});
     expect(assignVoiceNumbers([{id:'b',name:'Bass'}],next)).toEqual(next);

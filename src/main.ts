@@ -1,6 +1,5 @@
 import { shouldHandlePlayerShortcut } from './player-shortcuts';
-import { createVoiceKey } from './design-system/dom/player';
-import { assignVoiceNumbers, voiceColor, voiceLabel } from './voiceIdentity';
+import { assignVoiceNumbers, voiceColor } from './voiceIdentity';
 import { themeRegistry } from './design-system/theme';
 import { appShellRecipe, landingRecipe } from "./design-system/recipes/shell";
 import { createMainScreen, createPanelPart, createSectionMark, createOffsetControl, createCheckbox, createPlayerPart, createVoiceRow, createVoiceChip, createMixerVolume, createPlayerGlyph, createButton, updateButton, updateField, createLoading, createEmptyState, createSwitch, updateSwitch, createStatus, createAccountPart, createIconButton, createInput, createField, createCard, createBadge, createLibraryPart, updateLibraryBanner, createDialog, createSheet, createMenu, createMenuOverlay, toast } from './design-system/dom';
@@ -1904,16 +1903,13 @@ document.addEventListener('visibilitychange', () => {
 // ---------------------------------------------------------------------------------------------
 
 function voiceRow(partId: string, name: string, color: string): HTMLLIElement {
-  const voiceNumber = currentScore?.parts.find(p => p.id === partId)?.voiceNumber;
-  return createVoiceRow({partId,voiceNumber,name,color,onlyHint:t('onlyVoice',{name}),muteLabel:t('mute',{name}),soloLabel:t('soloVoice',{name}),
+  return createVoiceRow({partId,name,color,onlyHint:t('onlyVoice',{name}),muteLabel:t('mute',{name}),soloLabel:t('soloVoice',{name}),
     moreLabel:currentSong?.imported && editable()?t('voiceMenu',{name}):undefined,moreIcon:libraryIcon('more')});
 }
 
 function buildVoiceControls(score: Score) {
   voiceListEl.replaceChildren(...score.parts.map((p, i) => voiceRow(p.id, p.name, voiceColor(p, score))));
-  chipsEl.replaceChildren(...score.parts.map((p,i)=>createVoiceChip({partId:p.id,voiceNumber:p.voiceNumber,name:p.name,color:voiceColor(p,score),title:t('onlyVoice',{name:p.name})})));
-  document.querySelector('[data-voice-key]')?.remove();
-  overviewCanvas.parentElement!.after(createVoiceKey(t('voices'), score.parts.map(p => ({...p,color:voiceColor(p,score)})), id => { toggleTrueSolo(id); scheduleRender(); }));
+  chipsEl.replaceChildren(...score.parts.map((p,i)=>createVoiceChip({partId:p.id,name:p.name,color:voiceColor(p,score),title:t('onlyVoice',{name:p.name})})));
   renderChipTitles();
 }
 
@@ -1985,7 +1981,7 @@ function renderChipTitles() {
   document.querySelectorAll<HTMLElement>('.chip[data-part]').forEach((chip) => {
     const part = currentScore?.parts.find(part => part.id === chip.dataset.part);
     if (!part) return;
-    const name = voiceLabel(part);
+    const name = part.name;
     chip.title = singAlong ? t('voiceOnOff', { name }) : t('onlyVoice', { name });
   });
 }
@@ -2028,13 +2024,12 @@ async function renameVoice(partId: string) {
   const setName = (name: string) => {
     part.name = name;
     document.querySelectorAll<HTMLElement>(`.voice-row[data-part="${CSS.escape(partId)}"] .voice-name`).forEach((el) => {
-      const badge = el.querySelector('[data-voice-number]');
-      el.replaceChildren(...(badge ? [badge] : []), document.createTextNode(name));
+      el.replaceChildren(document.createTextNode(name));
       updateButton(el as HTMLButtonElement,{variant:name.length>13?'player-voice-name-long':'player-voice-name'});
     });
     document.querySelectorAll<HTMLElement>(`.chip[data-part="${CSS.escape(partId)}"]`).forEach((chip) => {
-      const dot = chip.querySelector('i'), badge = chip.querySelector('[data-voice-number]');
-      chip.replaceChildren(...(dot ? [dot] : []), ...(badge ? [badge] : []), document.createTextNode(name));
+      const dot = chip.querySelector('i');
+      chip.replaceChildren(...(dot ? [dot] : []), document.createTextNode(name));
     });
   };
   // Applied immediately, rolled back on failure -- see applySongTitle.

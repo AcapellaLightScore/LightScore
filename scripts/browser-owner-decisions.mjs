@@ -33,19 +33,22 @@ try {
    }
   }
   // Live re-theme is checked in renderer-themes, where the rehearsal appearance hold is bypassed explicitly.
-  await page.evaluate(()=>window.owner.player(16));if(!baseline)await page.locator('[data-voice-key] button').last().waitFor();
-  if(!baseline)assert.equal(await page.locator('[data-voice-key] button').count(),16);
-  if(!baseline)assert.equal(await page.locator('#voice-list [data-voice-number]').count(),16);
-  if(!baseline)assert.match(await page.locator('[data-voice-key]').innerText(),/16/);
+  // Owner, 2026-11: voices are known by name and colour again -- no number badges, no separate key.
+  await page.evaluate(()=>window.owner.player(16));if(!baseline)await page.locator('#voice-list .voice-row').last().waitFor({state:'attached'});
+  if(!baseline)assert.equal(await page.locator('#voice-list .voice-row').count(),16);
+  if(!baseline)assert.equal(await page.locator('#voice-chips .chip[data-part]').count(),16);
+  if(!baseline)assert.equal(await page.locator('[data-voice-number],[data-voice-key]').count(),0);
   await shot('16-roll');await page.evaluate(()=>window.owner.staff());await shot('16-staff');
   await page.evaluate(()=>window.owner.mixer());await page.locator('dialog[open]').waitFor();
-  if(!baseline)assert.equal(await page.locator('dialog [data-voice-number]').count(),16);await shot('16-mixer');await page.keyboard.press('Escape');
-  // Deliberate unison/short-note case: every ID stays keyboard-inspectable in the separate key.
+  if(!baseline)assert.equal(await page.locator('dialog .voice-row').count(),16);await shot('16-mixer');await page.keyboard.press('Escape');
+  // Deliberate unison/short-note case: every voice stays reachable from the keyboard.
   await page.evaluate(async()=>{const doc=new DOMParser().parseFromString(window.ownerXML[16],'text/xml');for(const p of doc.querySelectorAll('pitch'))p.innerHTML='<step>C</step><octave>4</octave>';for(const d of doc.querySelectorAll('note > duration'))d.textContent=String(Number(d.textContent)/16);window.ownerXML[16]=new XMLSerializer().serializeToString(doc);await window.owner.player(16);});
-  if(!baseline)assert.equal(await page.locator('[data-voice-key] button').count(),16);
+  if(!baseline)assert.equal(await page.locator('#voice-list .voice-row').count(),16);
   await shot('16-unison-short');
   if(!baseline){
-  const button=page.locator('[data-voice-key] button').last();await button.focus();await page.keyboard.press('Space');
+  // The voice list's solo buttons; on phones, where the list is a sheet, the chips.
+  const chip=page.locator('#voice-chips .chip[data-part]').last();
+  const button=(await chip.isVisible())?chip:page.locator('#voice-list [data-mix="solo"]').last();await button.focus();await page.keyboard.press('Space');
   assert.equal(await button.getAttribute('aria-pressed'),'true');await page.keyboard.press('Space');
   }
   if(theme==='parchment'&&width!==768&&!baseline){

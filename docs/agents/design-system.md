@@ -288,6 +288,7 @@ The guard is local AST analysis with the limitations above, not an interprocedur
 | D45 B | Retain complete wrapping library titles. Equal-height cards stretch their bodies and align details at the bottom of each row. Retain D23's 280px tablet cards and phone records. |
 | D46 A | Retain the existing 2× canvas resolution cap for smooth playback; no resolution change. |
 | D47 B | Library menu title: Settings / Einstellungen. Language stays an option inside it. |
+| D50 (owner, supersedes D42's visible numbers) | Voices are known by name and colour again, as in the prototype: no number badges in voice rows, chips, the mixer, staff labels, roll notes or overview callouts, and no separate voice key. `formatDefaults.voiceNumbers` is still stored; it keeps the colours of voices 9–16 stable through rename, reorder and removal. On wide screens worked with a mouse alone (the `desk` variant, the complement of `touch`) a voice row is one line again: light, name, M, S, ⋯ (`voice-compact` / `voice-actions` columns, 14px · 1fr · 34px · 34px · 28px). Touch devices and widths ≤900px keep the two-line rows with 44px targets. |
 
 Retained compatibility role names preserve consumer APIs, not independently authored palettes.
 Category feedback colors remain pending their separate owner review. Material

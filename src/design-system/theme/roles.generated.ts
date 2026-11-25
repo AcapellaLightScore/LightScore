@@ -652,6 +652,7 @@ export const themeRoleNames = [
   "player-voice-name-max-height",
   "player-voice-name-padding",
   "player-voice-row-columns-actions",
+  "player-voice-row-columns-compact",
   "player-voice-row-grid-template-columns",
   "player-voice-row-hover-background",
   "player-voice-row-hover-background-light",

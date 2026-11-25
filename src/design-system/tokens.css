@@ -2194,6 +2194,7 @@
   --ds-player-voices-panel-grid-area: side;
   --ds-player-voice-row-grid-template-columns: var(--ds-space-row) minmax(0, 1fr) var(--ds-control-target-touch) var(--ds-control-target-touch);
   --ds-player-voice-row-columns-actions: var(--ds-space-row) minmax(0, 1fr) var(--ds-size-admin-mobile) var(--ds-size-admin-mobile) var(--ds-space-heading);
+  --ds-player-voice-row-columns-compact: var(--ds-space-row) minmax(0, 1fr) var(--ds-size-admin-mobile) var(--ds-size-admin-mobile);
   --ds-player-sheet-body-grid-template-columns: var(--ds-space-row) minmax(0, 1fr) var(--ds-space-toolbar) var(--ds-space-toolbar) var(--ds-space-toolbar-dense);
   --ds-player-voice-name-line-height: 1.2;
   --ds-player-voice-name-max-height: 2.4em;
@@ -2610,6 +2611,7 @@
   --grid-template-columns-transport-phone: var(--ds-player-transport-columns-phone);
   --grid-template-columns-voice-row: var(--ds-player-voice-row-grid-template-columns);
   --grid-template-columns-voice-actions: var(--ds-player-voice-row-columns-actions);
+  --grid-template-columns-voice-compact: var(--ds-player-voice-row-columns-compact);
   --leading-account-links-line-height: var(--ds-account-links-line-height);
   --leading-auth-shell-p-line-height: var(--ds-auth-shell-p-line-height);
   --leading-intro-card-p-line-height: var(--ds-intro-card-p-line-height);

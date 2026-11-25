@@ -87,7 +87,7 @@ try {
     } finally {clearTimeout(timeout);}
     for (const page of pages) {
       assert.deepEqual(await page.evaluate(()=>({id:playerRegression.state().id,mode:playerRegression.state().mode,voices:playerRegression.state().voices})),{id:'legacy-piece',mode:'ensemble',voices:16});
-      assert.equal(await page.locator('[data-voice-key] button').count(),16);
+      assert.equal(await page.locator('#voice-chips .chip[data-part]').count(),16);
     }
     assert.equal(pending.length,2);
     assert.deepEqual(writes[0],writes[1]);
@@ -109,7 +109,7 @@ try {
       return failure==='network'?route.abort('failed'):route.fulfill({status:failure,contentType:'application/json',body:'{"code":"service_unavailable"}'});
     });
     await page.evaluate(()=>playerRegression.openLegacy());
-    await page.waitForFunction(()=>document.querySelectorAll('[data-voice-key] button').length===16);
+    await page.waitForFunction(()=>document.querySelectorAll('#voice-chips .chip[data-part]').length===16);
     assert.equal((await page.evaluate(()=>playerRegression.state())).id,'legacy-piece');
     await page.evaluate(()=>playerRegression.openLegacy());
     assert.equal(writes,2,'a later opening retries the optional write');
@@ -121,10 +121,10 @@ try {
     await page.evaluate(()=>owner.player(16));
     await page.evaluate(()=>playerRegression.titles());
     const titles = await page.locator('.chip[data-part="P9"]').evaluateAll(nodes=>nodes.map(node=>node.title));
-    assert.ok(titles.length>=2,'both player chip and numbered key have tooltips');
-    for (const title of titles) assert.match(title,language==='en'?/^Only 9 · Soprano III /:/^Nur 9 · Soprano III /);
+    assert.equal(titles.length,1,'one chip per voice, with its tooltip');
+    for (const title of titles) assert.match(title,language==='en'?/^Only Soprano III /:/^Nur Soprano III /);
     await page.screenshot({path:path.join(out,`tooltips-${language}.png`)});
-    await page.close();results.push(`${language} chip/key titles separate voice number and complete name`);
+    await page.close();results.push(`${language} chip titles carry the complete name`);
   }
   const page = await pageFor();
   await page.evaluate(()=>owner.player(16));
@@ -159,7 +159,7 @@ try {
   const muted = await mute.getAttribute('aria-pressed');
   await page.keyboard.press('Space');assert.notEqual(await mute.getAttribute('aria-pressed'),muted);
   await page.keyboard.press('Enter');assert.equal(await mute.getAttribute('aria-pressed'),muted);
-  const voice = page.locator('[data-voice-key] button').last();
+  const voice = page.locator('#voice-list [data-mix="solo"]').last();
   await voice.focus();await page.keyboard.press('Space');assert.equal(await voice.getAttribute('aria-pressed'),'true');
   await page.keyboard.press('Space');assert.equal(await voice.getAttribute('aria-pressed'),'false');
   await page.evaluate(()=>{const range=document.createElement('input');range.id='keyboard-range';range.type='range';range.value='50';document.querySelector('#app').append(range);});
