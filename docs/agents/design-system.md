@@ -288,6 +288,7 @@ The guard is local AST analysis with the limitations above, not an interprocedur
 | D45 B | Retain complete wrapping library titles. Equal-height cards stretch their bodies and align details at the bottom of each row. Retain D23's 280px tablet cards and phone records. |
 | D46 A | Retain the existing 2× canvas resolution cap for smooth playback; no resolution change. |
 | D47 B | Library menu title: Settings / Einstellungen. Language stays an option inside it. |
+| D51 (owner) | Druck & Papier: on the paper families the type, solids, fields and library cards are printed material lit from the upper left. Ink is worn by the paper's grain and pressed in. A solid shows pinholes and sits in a bed. Cards are deckle-edged sheets on a second sheet. Gold is foil with a moving sheen. Covers are gouache (night paper). The sheet view's music is printed into the paper. Night paper leads; parchment prints with ink; velvet is unchanged. Values are `--ds-print-*` theme tokens; `printMaterial.ts` writes the live inputs; recipes in `recipes/print.ts`. |
 
 Retained compatibility role names preserve consumer APIs, not independently authored palettes.
 Category feedback colors remain pending their separate owner review. Material
@@ -341,6 +342,18 @@ Each theme authors `--ds-material-strategy: light | ink`, independent of its bro
 lanterns and additive ribbons; `ink` to pergament, multiplied lanterns/glows and
 source-over ribbon lines. Night paper/Velvet select `light`; Parchment selects `ink`.
 These roles preserve the previous pixels without using browser scheme as a material policy.
+
+D51 adds the print layer on top of the material strategy. Each theme authors the strengths
+(`--ds-print-type-wear`, `-solid-voids`, `-foil-crinkle`, `-music-wear`, `-gouache-*`) and the
+print paints (`--ds-print-type-shadow`, `-card-filter`, `-solid-bed`, `-field-*`, ...). From
+these, `printMaterial.ts` generates one seeded wear tile per theme and publishes
+`--ds-print-{wear-display,wear-fine,voids,crinkle}-live` and the deckle edges
+(`--ds-print-deckle-{card,under}-{top,bottom,left,right}-live`) as root inputs, in the same way
+`paper.ts` writes `--ds-material-fibre-live`. When the surface is not paper, or every strength is 0,
+they are removed and all `material-paper:` print utilities resolve to `none`. Canvas:
+`InkLayer`/`printInPlace` print the sheet view's music once per pre-painted slice (and the live
+stretch and the cached margin). `gouache()` paints the paper covers once. The playback profile
+before and after is in the D51 pull request.
 
 SVG fill/stroke and style paint are scanned, including named colors. `currentColor` and native
 non-paints are allowed. Fixed brand SVG artwork needs a reviewed path/SHA-256 entry in

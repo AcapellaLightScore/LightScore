@@ -18,3 +18,35 @@
     opacity: var(--ds-layer-content);
   }
 }
+/* D51: on paper each card is a handmade sheet lying on a second one, laid by hand -- a little askew,
+   never twice the same. The sheet below is generated content (no element to receive recipe classes);
+   the card's filter casts one shadow for both, following their deckle edges. */
+@container style(--ds-material-family: paper) {
+  :root:root .ds-library-song-card:not(.skeleton)::before {
+    content: var(--ds-content-empty);
+    position: absolute;
+    inset: 0;
+    z-index: var(--ds-layer-behind);
+    translate: var(--ds-print-under-offset);
+    rotate: var(--ds-print-under-turn);
+    background: var(--ds-print-under-surface);
+    mask: var(--ds-print-deckle-under);
+    pointer-events: none;
+  }
+  :root:root .ds-library-song-card:not(.skeleton):nth-child(4n + 2)::before {
+    translate: var(--ds-print-under-offset-alt);
+    rotate: var(--ds-print-under-turn-alt);
+  }
+  :root:root .ds-library-song-card:not(.skeleton):nth-child(4n + 3)::before {
+    translate: var(--ds-print-under-offset-left);
+    rotate: var(--ds-print-under-turn-left);
+  }
+  :root:root .ds-library-song-card:not(.skeleton):nth-child(4n)::before {
+    translate: var(--ds-print-under-offset-low);
+    rotate: var(--ds-print-under-turn-low);
+  }
+  /* The spotlight falls on the card's own sheet: cut to the same edge. */
+  :root:root .ds-library-song-card:not(.skeleton)::after {
+    mask: var(--ds-print-deckle-card);
+  }
+}

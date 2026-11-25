@@ -6,6 +6,7 @@ import { NIGHT_PAPER, paintPaper, STILL } from './paper';
 import { LOGO_DRAFT, type LogoDraft } from './design';
 import { drawLightRibbons, RibbonField } from './lightRibbons';
 import { broadNib, pointAlong, pointedPen, type Pt } from './pen';
+import { gouache, paintsGouache } from './printMaterial';
 
 export interface RibbonOptions {
   voices: number;
@@ -308,6 +309,7 @@ function drawPenCover(ctx: CanvasRenderingContext2D, w: number, h: number, data:
   paintPaper(ctx, 0, 0, w, h, STILL, 'surface', NIGHT_PAPER);
   if (!count) return;
   const scale = Math.max(0.6, Math.min(1.4, w / 260));
+  const strokes: [Path2D, string][] = [];
   data.contours.forEach((contour, i) => {
     const n = contour.length - 1;
     const at = contour.map((m, k) => [w * 0.05 + (k / n) * w * 0.9, h * 0.86 - ((m - data.lo) / (data.hi - data.lo)) * h * 0.72] as Pt);
@@ -324,9 +326,21 @@ function drawPenCover(ctx: CanvasRenderingContext2D, w: number, h: number, data:
     }
     const stroke = new Path2D();
     broadNib(stroke, pts, { w: 3.6 * scale, angle: 35, floor: 0.22, taper: 0.05 });
-    ctx.fillStyle = withAlpha(colorForPart(i, count), Number(readTheme().roles['artwork-cover-voice-alpha']));
-    ctx.fill(stroke, 'nonzero');
+    strokes.push([stroke, colorForPart(i, count)]);
   });
+  // D51: where the theme paints in gouache (night paper), the lines are paint with a body, laid
+  // opaquely on the card (printMaterial.ts); otherwise ink in the theme's alpha, as before.
+  const theme = readTheme();
+  const body = paintsGouache(theme);
+  const alpha = body ? 1 : Number(theme.roles['artwork-cover-voice-alpha']);
+  const write = (c: CanvasRenderingContext2D) => {
+    for (const [stroke, color] of strokes) {
+      c.fillStyle = withAlpha(color, alpha);
+      c.fill(stroke, 'nonzero');
+    }
+  };
+  if (body) gouache(ctx, write, theme);
+  else write(ctx);
 }
 
 /**

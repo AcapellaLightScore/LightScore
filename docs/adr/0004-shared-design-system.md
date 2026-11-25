@@ -120,3 +120,5 @@ retained parity variants, guard exceptions and verification limitations.
 **D46 A.** Keep the existing 2× canvas backing resolution cap for playback performance; no renderer resolution change.
 
 **D47 B.** The library menu title is “Settings” / “Einstellungen”; language remains one setting within it.
+
+**D51 (owner).** Druck & Papier: the paper families print their type, solids, fields and library cards as material under one lamp. Ink is worn and pressed, solids have pinholes in a bed, cards are deckle-edged sheets, gold is foil with a moving sheen, covers are gouache on night paper, and the sheet view's music is printed into the paper. All values are theme tokens (`--ds-print-*`); velvet is unchanged. Live inputs come from `printMaterial.ts`, recipes from `recipes/print.ts`.

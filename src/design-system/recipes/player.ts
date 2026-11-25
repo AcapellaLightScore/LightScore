@@ -1,4 +1,5 @@
 import { normalizeRecipe } from "./normalize";
+import { printStyles } from "./print";
 /** D08/D10/D12: typed player slots compose shared controls and semantic materials. */
 const playerStyles = {
   part: "tw:[:where(&)]:font-inherit tw:[:where(&)]:text-inherit tw:[:where(&)]:font-smoothing-inherit tw:[:where(&)]:locale-inherit tw:[:where(&)]:tap-highlight-inherit tw:[:where(&)]:select-text tw:[:where(&)]:[text-align:inherit]",
@@ -26,8 +27,8 @@ const playerStyles = {
   voiceMore: "tw:row-start-2 tw:col-start-4 tw:min-w-control-target-touch tw:min-h-control-target-touch tw:w-heading tw:opacity-(--ds-player-voice-more-opacity) tw:[&:focus-visible]:opacity-opacity-visible",
   light: "tw:row-start-1 tw:col-start-1 tw:w-control tw:h-control tw:rounded-round tw:[border:var(--ds-stroke-mark)_solid_var(--c)] tw:opacity-(--ds-player-light-opacity) tw:motion-player-light-transition tw:[&.on]:[background:var(--c)] tw:[&.on]:opacity-opacity-visible tw:[&.on]:[box-shadow:0_0_var(--ds-space-control)_var(--c)]",
   voiceName: "tw:row-start-1 tw:col-start-2 tw:col-span-3 tw:min-w-flush tw:min-h-control-target-touch tw:text-left tw:font-weight-label tw:text-body tw:p-player-voice-name-padding tw:rounded-menu tw:whitespace-normal tw:wrap-anywhere tw:hyphens-auto tw:[&.long]:text-note tw:[&.long]:leading-player-voice-name-line-height",
-  mixBtn: "tw:row-start-2 tw:min-w-control-target-touch tw:min-h-control-target-touch tw:w-panel tw:h-panel tw:rounded-control tw:frame-all-player-badge-border tw:type-player-mix-button-font tw:text-ink-secondary tw:justify-self-center tw:motion-player-mix-button-transition tw:[&:hover]:border-ink-secondary tw:[&:hover]:text-ink",
-  muteBtn: "tw:col-start-2 tw:[&[aria-pressed='true']]:surface-ink tw:[&[aria-pressed='true']]:border-ink tw:[&[aria-pressed='true']]:text-surface-sunken tw:[&[aria-pressed='true']]:elevation-player-mute-active-shadow",
+  mixBtn: "tw:row-start-2 tw:min-w-control-target-touch tw:min-h-control-target-touch tw:w-panel tw:h-panel tw:rounded-control tw:frame-all-player-badge-border tw:type-player-mix-button-font tw:text-ink-secondary tw:justify-self-center tw:motion-player-mix-button-transition tw:[&:hover]:border-ink-secondary tw:[&:hover]:text-ink" + " " + printStyles.mix,
+  muteBtn: "tw:col-start-2 tw:[&[aria-pressed='true']]:surface-ink tw:[&[aria-pressed='true']]:border-ink tw:[&[aria-pressed='true']]:text-surface-sunken tw:[&[aria-pressed='true']]:elevation-player-mute-active-shadow" + " " + printStyles.muteOn,
   soloBtn: "tw:col-start-3 tw:[&[aria-pressed='true']]:[color:var(--c)] tw:[&[aria-pressed='true']]:[border-color:var(--c)] tw:[&[aria-pressed='true']]:[background:color-mix(in_oklab,_var(--c)_var(--ds-voice-solo-tint),_transparent)] tw:[&[aria-pressed='true']]:[box-shadow:0_0_var(--ds-space-control)_var(--ds-voice-solo-spread)_var(--c)]",
   duck: "tw:p-player-duck-padding tw:frame-top-player-duck-border-top",
   duckRow: "tw:flex tw:items-center tw:gap-control tw:mt-inline",
@@ -64,7 +65,7 @@ const playerParts = {
   "header": ["ds-player-part ds-player-p-top p-top", playerStyles.part, playerStyles.pTop].join(" "),
   "title": ["ds-player-part ds-player-p-title p-title", playerStyles.part, playerStyles.pTitle].join(" "),
   "header-actions": ["ds-player-part ds-player-p-top-r p-top-r", playerStyles.part, playerStyles.pTopR].join(" "),
-  "song-title": ["ds-player-part ds-player-song-title song-title", playerStyles.part, playerStyles.songTitle].join(" "),
+  "song-title": ["ds-player-part ds-player-song-title song-title", playerStyles.part, playerStyles.songTitle, printStyles.display].join(" "),
   "song-meta": ["ds-player-part ds-player-song-meta song-meta", playerStyles.part, playerStyles.songMeta].join(" "),
   "voices-panel": ["ds-player-part ds-player-voices-panel voices-panel", playerStyles.part, playerStyles.voicesPanel].join(" "),
   "panel-head": ["ds-player-part ds-player-panel-head panel-head", playerStyles.part, playerStyles.panelHead].join(" "),
@@ -108,8 +109,8 @@ const playerControls = {
   "player-toggle": "ds-player-button ds-player-t-btn ds-player-toggle t-btn toggle" + " " + playerStyles.button + " " + playerStyles.tBtn,
   "player-preference": "ds-player-button ds-player-t-btn ds-player-toggle ds-player-t-metro t-btn toggle t-metro" + " " + playerStyles.button + " " + playerStyles.tBtn + " " + playerStyles.tMetro,
   "player-save": "ds-player-button ds-player-t-btn ds-player-t-save t-btn t-save" + " " + playerStyles.button + " " + playerStyles.tBtn,
-  "player-voice-name": "ds-player-button ds-player-voice-name voice-name" + " " + playerStyles.button + " " + playerStyles.voiceName,
-  "player-voice-name-long": "ds-player-button ds-player-voice-name ds-player-long voice-name long" + " " + playerStyles.button + " " + playerStyles.voiceName,
+  "player-voice-name": "ds-player-button ds-player-voice-name voice-name" + " " + playerStyles.button + " " + playerStyles.voiceName + " " + printStyles.fine,
+  "player-voice-name-long": "ds-player-button ds-player-voice-name ds-player-long voice-name long" + " " + playerStyles.button + " " + playerStyles.voiceName + " " + printStyles.fine,
   "player-mute": "ds-player-button ds-player-mix-btn ds-player-mute-btn mix-btn mute-btn" + " " + playerStyles.button + " " + playerStyles.mixBtn + " " + playerStyles.muteBtn,
   "player-solo": "ds-player-button ds-player-mix-btn ds-player-solo-btn mix-btn solo-btn" + " " + playerStyles.button + " " + playerStyles.mixBtn + " " + playerStyles.soloBtn,
   "player-chip": "ds-player-button ds-player-chip chip" + " " + playerStyles.button + " " + playerStyles.chip,
