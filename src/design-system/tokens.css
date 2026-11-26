@@ -2064,7 +2064,8 @@
   --ds-type-wordmark-font-family: var(--ds-wordmark-font-family);
   --ds-type-wordmark-font-weight: var(--ds-weight-body);
   --ds-type-wordmark-font-synthesis: none;
-  --ds-type-library-heading-font-family: var(--ds-font-heading);
+  /* D52: the ensemble's name is a named title (as D03's piece titles): Baltimore Title, in capitals. */
+  --ds-type-library-heading-font-family: 'Baltimore Title 1832', var(--ds-font-heading);
   --ds-type-library-heading-font-weight: var(--ds-weight-body);
   --ds-type-library-heading-text-transform: uppercase;
   --ds-type-library-heading-font-synthesis: none;
