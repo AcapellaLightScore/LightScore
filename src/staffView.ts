@@ -772,6 +772,19 @@ export class StaffView {
     const maxFill = this.cssWidth < mobileBreakpointPx() ? MAX_FILL_SCALE_NARROW : MAX_FILL_SCALE;
     this.fill = clamp(this.cssHeight / natural, 1, maxFill);
     this.extraGap = Math.max(0, (this.cssHeight / this.fill - natural) / count);
+    this.publishRuler();
+  }
+
+  /**
+   * The ruler's height on screen as a live input of the stage (stage.css masks the ruler apart and
+   * hangs its shadow below it, D53). Set only when it changes -- never per frame.
+   */
+  private rulerPublished = 0;
+  private publishRuler() {
+    const h = this.rulerHeight();
+    if (h === this.rulerPublished || typeof document === 'undefined') return;
+    this.rulerPublished = h;
+    this.canvas.parentElement?.style.setProperty('--ds-print-staff-ruler-live', `${h}px`);
   }
 
   /** Height of the ruler strip on screen (it grows with the staves). */

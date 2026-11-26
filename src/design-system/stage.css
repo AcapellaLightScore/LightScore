@@ -24,14 +24,39 @@
     will-change: transform;
     transform: var(--ds-roll-staff-transform)
 }
-/* On paper the roll and the sheet lie recessed in a box: the canvases fade into the stage's shadow
-   at the left (under the voices) and come into the light toward the right. A static mask on the
-   canvases' own compositor layers -- nothing per frame. */
+/* On paper the roll and the sheet lie recessed in a box (D53): the music fades into the stage's
+   shadow toward the left and comes into the light toward the right. The bar ruler is its own layer
+   above it: in the same canvas, but masked apart (only slightly shaded at the sides, not from above).
+   Static masks on the canvases' own compositor layers -- nothing per frame. */
 @container style(--ds-material-family: paper) {
-    #roll,
+    #roll {
+        mask:
+            var(--ds-print-ruler-vignette) 0 0 / 100% var(--ds-print-ruler-height) no-repeat add,
+            var(--ds-print-stage-vignette-y) 0 var(--ds-print-ruler-height) / 100% calc(100% - var(--ds-print-ruler-height)) no-repeat intersect,
+            var(--ds-print-stage-vignette-x) 0 var(--ds-print-ruler-height) / 100% calc(100% - var(--ds-print-ruler-height)) no-repeat
+    }
     #staff {
-        mask-image: var(--ds-print-stage-vignette);
-        mask-composite: intersect
+        mask:
+            var(--ds-print-ruler-vignette) 0 0 / 100% var(--ds-print-staff-ruler-live, var(--ds-print-ruler-height)) no-repeat add,
+            var(--ds-print-stage-vignette-y) 0 var(--ds-print-staff-ruler-live, var(--ds-print-ruler-height)) / 100% calc(100% - var(--ds-print-staff-ruler-live, var(--ds-print-ruler-height))) no-repeat intersect,
+            var(--ds-print-stage-vignette-x) 0 var(--ds-print-staff-ruler-live, var(--ds-print-ruler-height)) / 100% calc(100% - var(--ds-print-staff-ruler-live, var(--ds-print-ruler-height))) no-repeat
+    }
+    /* The ruler's lit upper edge and its shadow on the music: generated content over the canvases. */
+    .stage::after {
+        content: var(--ds-content-empty);
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: calc(var(--ds-print-ruler-height) + var(--ds-print-ruler-cast-depth));
+        pointer-events: none;
+        background:
+            var(--ds-print-ruler-edge) 0 0 / 100% var(--ds-space-hairline) no-repeat,
+            var(--ds-print-ruler-cast) 0 var(--ds-print-ruler-height) / 100% var(--ds-print-ruler-cast-depth) no-repeat
+    }
+    .stage:has(> #staff:not([hidden]))::after {
+        height: calc(var(--ds-print-staff-ruler-live, var(--ds-print-ruler-height)) + var(--ds-print-ruler-cast-depth));
+        background-position: 0 0, 0 var(--ds-print-staff-ruler-live, var(--ds-print-ruler-height))
     }
 }
 /* The piano roll advertises its drag affordance before gesture handling starts. */
