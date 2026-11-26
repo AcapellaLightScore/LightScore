@@ -20,7 +20,7 @@ export const colorRoles = [
   'stage-dust', 'stage-note-highlight', 'title-staff-lamp-core', 'title-staff-lamp-edge',
   'title-staff-reading-line', 'title-staff-note-highlight', 'title-staff-ink', 'title-staff-afterglow',
   'title-staff-nib', 'title-staff-flare-core', 'title-staff-flare-edge', 'artwork-nib',
-  'material-gel-deep', 'material-wordmark-rim', 'score-lantern-cavity', 'score-row-shadow',
+  'material-gel-deep', 'material-wordmark-rim', 'score-lantern-cavity', 'score-row-shadow', 'print-stage-shadow',
   'score-hole-edge', 'score-key-separator', 'score-key-shadow', 'material-lantern-occlusion',
   'material-lantern-glow', 'material-paper-strand-shadow', 'material-paper-strand-light', 'material-paper-warm-fleck',
   'artwork-cover-ground', 'brand-mark-tile', 'backdrop-wave-1', 'backdrop-wave-2',

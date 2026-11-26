@@ -8,7 +8,7 @@ import { around, SliceRing } from './sliceRing';
 
 import { drawRulerSignature, signatureChanges, type SignatureChange } from './signatures';
 import { drawInkMark, layoutMarks, MARKS_ON, type MarkLayout } from './goldInk';
-import { drawPlayheadMarker, InkLayer, printInPlace, printsMusic } from './printMaterial';
+import { drawPlayheadMarker, InkLayer, printInPlace, printsMusic, RULER_WEAR } from './printMaterial';
 
 // Wider than the piano roll's (70): noteheads, stems, accidentals and syllables need the room.
 // A phone draws its staves larger (see updateFill), so it starts from less to show about a bar.
@@ -1193,6 +1193,8 @@ export class StaffView {
       this.drawFrom = -RANGE_SLACK_PX;
       this.drawTo = w + RANGE_SLACK_PX;
       this.drawRulerLabels(ruler, at, at + (this.drawFrom - this.playheadX()) / this.pixelsPerBeat, at + (this.drawTo - this.playheadX()) / this.pixelsPerBeat);
+      // Printed like the music, once per slice (D51/D53): the section boxes and numbers worn too.
+      if (printsMusic(this.theme)) printInPlace(ruler, { x: left, y: 0, w: sd, h: this.ringRuler!.height }, { x: left - i * sd, y: 0 }, this.theme, RULER_WEAR);
       ruler.restore();
     }
     this.ring.hold(i);
@@ -1389,7 +1391,7 @@ export class StaffView {
       if (!mctx) return;
       // Its paper and the fade into the music, and the voices' names, which can reach further.
       mctx.font = `600 12px ${this.theme.fonts['canvas-text']}`;
-      let reach = this.gutterPx + 28;
+      let reach = Math.max(this.gutterPx + 28, this.marginFadeEnd());
       for (const layout of layouts) {
         if (layout.staff === 1) reach = Math.max(reach, 25 + mctx.measureText(this.partLabel(layout.partId)).width + 4);
       }
@@ -1404,6 +1406,11 @@ export class StaffView {
     ctx.restore();
   }
 
+  /** Where the box's shadow over the left of the stage has fully lifted (paper): just before the line. */
+  private marginFadeEnd(): number {
+    return this.theme.material.surface === 'paper' ? Math.max(this.gutterPx + 28, this.playheadX() - 6) : this.gutterPx + 28;
+  }
+
   /** The pinned left margin: voice name above each staff, then clef and key signature on it. */
   private drawMargin(onto: CanvasRenderingContext2D, layouts: PartLayout[], startBeat: number, height: number) {
     let ctx = onto;
@@ -1415,12 +1422,36 @@ export class StaffView {
       ctx.fillStyle = ground.css;
       ctx.fillRect(0, STAFF_RULER_HEIGHT_PX, G, height - STAFF_RULER_HEIGHT_PX);
     }
-    // Music scrolling into the margin fades out instead of stopping at a hard edge.
-    const fade = ctx.createLinearGradient(G, 0, G + 28, 0);
-    fade.addColorStop(0, ground.rgba(1));
-    fade.addColorStop(1, ground.rgba(0));
-    ctx.fillStyle = fade;
-    ctx.fillRect(G, STAFF_RULER_HEIGHT_PX, 28, height - STAFF_RULER_HEIGHT_PX);
+    // Music scrolling into the margin fades out instead of stopping at a hard edge. On paper the
+    // whole left of the stage lies in the box's shadow (D53): the staves and the music sink into it
+    // continuously, from the reading line's approach to under the voices; only the clefs, keys and
+    // names lie on top (drawn after it).
+    const shadowed = this.theme.material.surface === 'paper';
+    if (shadowed) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(0, STAFF_RULER_HEIGHT_PX, this.cssWidth, height - STAFF_RULER_HEIGHT_PX);
+      ctx.clip();
+      ctx.translate(0, STAFF_RULER_HEIGHT_PX - this.scrollY);
+      ctx.fillStyle = paper(0.22);
+      for (const layout of layouts) for (let i = 0; i < 5; i++) ctx.fillRect(0, Math.round(layout.topY + i * SP), G, 1);
+      ctx.restore();
+      const end = this.marginFadeEnd();
+      // The stage's shadow, as the stage behind the canvas shows it.
+      const shade = this.theme.color('print-stage-shadow');
+      const fall = ctx.createLinearGradient(G, 0, end, 0);
+      for (let i = 0; i <= 8; i++) fall.addColorStop(i / 8, shade.rgba(Number((0.96 * (1 - (i / 8) ** 1.6)).toFixed(3))));
+      ctx.fillStyle = shade.rgba(0.96);
+      ctx.fillRect(0, STAFF_RULER_HEIGHT_PX, G, height - STAFF_RULER_HEIGHT_PX);
+      ctx.fillStyle = fall;
+      ctx.fillRect(G, STAFF_RULER_HEIGHT_PX, end - G, height - STAFF_RULER_HEIGHT_PX);
+    } else {
+      const fade = ctx.createLinearGradient(G, 0, G + 28, 0);
+      fade.addColorStop(0, ground.rgba(1));
+      fade.addColorStop(1, ground.rgba(0));
+      ctx.fillStyle = fade;
+      ctx.fillRect(G, STAFF_RULER_HEIGHT_PX, 28, height - STAFF_RULER_HEIGHT_PX);
+    }
 
     const measure = this.measureAtOrBefore(startBeat);
     const fifths = measure ? this.transposedFifths(measure.fifths) : 0;
@@ -1437,7 +1468,7 @@ export class StaffView {
       const dimmed = this.dimmedParts.has(layout.partId);
       ctx.globalAlpha = dimmed ? 0.5 : 1;
       ctx.fillStyle = paper(0.22);
-      for (let i = 0; i < 5; i++) ctx.fillRect(0, Math.round(layout.topY + i * SP), G + 28, 1);
+      if (!shadowed) for (let i = 0; i < 5; i++) ctx.fillRect(0, Math.round(layout.topY + i * SP), G + 28, 1);
       ctx.fillStyle = paper(0.8);
       ctx.font = `${SP * 4}px ${this.theme.fonts.music}`;
       ctx.textBaseline = 'alphabetic';

@@ -739,6 +739,7 @@ export const themeRoleNames = [
   "print-solid-bed",
   "print-solid-pressed",
   "print-solid-voids",
+  "print-staff-vignette-x",
   "print-stage-shadow",
   "print-stage-vignette-x",
   "print-stage-vignette-y",

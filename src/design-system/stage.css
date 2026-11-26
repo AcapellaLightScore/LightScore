@@ -39,7 +39,7 @@
         mask:
             var(--ds-print-ruler-vignette) 0 0 / 100% var(--ds-print-staff-ruler-live, var(--ds-print-ruler-height)) no-repeat add,
             var(--ds-print-stage-vignette-y) 0 var(--ds-print-staff-ruler-live, var(--ds-print-ruler-height)) / 100% calc(100% - var(--ds-print-staff-ruler-live, var(--ds-print-ruler-height))) no-repeat intersect,
-            var(--ds-print-stage-vignette-x) 0 var(--ds-print-staff-ruler-live, var(--ds-print-ruler-height)) / 100% calc(100% - var(--ds-print-staff-ruler-live, var(--ds-print-ruler-height))) no-repeat
+            var(--ds-print-staff-vignette-x) 0 var(--ds-print-staff-ruler-live, var(--ds-print-ruler-height)) / 100% calc(100% - var(--ds-print-staff-ruler-live, var(--ds-print-ruler-height))) no-repeat
     }
     /* The ruler's shadow on the music: generated content over the canvases. */
     .stage::after {

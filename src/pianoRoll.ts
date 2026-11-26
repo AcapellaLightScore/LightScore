@@ -7,7 +7,7 @@ import { backlight, BACKLIGHT_REACH, NIGHT_PAPER, paintPaper, type PaperFrame } 
 import { Lantern, type Flare } from './lantern';
 import { deviceChoice } from './design';
 import { drawRulerSignature, signatureChanges, transposeFifths, type SignatureChange } from './signatures';
-import { drawPlayheadMarker } from './printMaterial';
+import { drawPlayheadMarker, printInPlace, printsMusic, RULER_WEAR } from './printMaterial';
 
 export const BASE_PIXELS_PER_BEAT = 70;
 // The only place a click/drag sets the playback start point or defines a loop region -- clicks in
@@ -1248,6 +1248,9 @@ export class PianoRoll {
         rctx.fillText(section.label, x + 9, 18.5);
         rctx.textAlign = 'start';
       }
+      // Printed like the music, once per buffer (D51/D53): the section boxes and numbers worn too,
+      // the wear anchored at beat 0 so it moves with the bars.
+      if (printsMusic(this.theme)) printInPlace(rctx, { x: 0, y: 0, w: rulerBuf.width, h: rulerBuf.height }, { x: -originBeat * this.pixelsPerBeat * this.dpr, y: 0 }, this.theme, RULER_WEAR);
     }
 
   }

@@ -82,7 +82,7 @@ export function libraryDialogRecipe(variant:"library-prompt"|"library-sheet"|"li
  return {
   panel: "ds-library-overlay " + (variant === "library-sheet" ? "ds-library-sheet " : variant === "library-popover" ? "ds-library-popover " : "ds-library-prompt ") + dialogPresentationRecipe(presentation) + (presentation === "centered" ? " tw:w-width-sheet " : " ") + "tw:fixed tw:h-fit tw:box-border tw:overflow-auto tw:overscroll-contain tw:outline-none tw:font-body tw:text-body tw:leading-leading-body tw:text-ink tw:bg-surface-raised tw:border-(length:--ds-stroke-thin) tw:border-solid " + (destructive ? "tw:border-danger" : "tw:border-rule-strong") + " " + printStyles.float + " tw:shadow-component-overlay-shadow tw:motion-library-prompt-transition tw:data-[panel-state=entering]:opacity-opacity-hidden tw:data-[panel-state=closing]:opacity-opacity-hidden tw:motion-reduce:transition-none tw:[&_form:empty]:hidden",
   content:"ds-library-overlay-content tw:grid tw:gap-row tw:min-w-flush",
-  header:"ds-library-sheet-head tw:flex tw:items-center tw:justify-between tw:gap-group",
+  header:"ds-library-sheet-head tw:flex tw:items-center tw:justify-between tw:gap-group tw:[.ds-library-overlay:has(.ds-library-menu)_&]:pl-control",
   title:"ds-library-sheet-title tw:m-flush tw:font-body tw:text-dialog tw:font-weight-strong tw:leading-leading-label tw:wrap-anywhere",
   body:"ds-library-prompt-body " + libraryStyles.promptBody,
   actions:"ds-library-prompt-actions " + libraryStyles.promptActions + " tw:flex-wrap",

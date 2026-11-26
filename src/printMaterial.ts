@@ -200,7 +200,7 @@ export class InkLayer {
  * rect `area`, worn by the paper's grain anchored at the device point `at` (where the paper's
  * origin is). One fill, no copy of the canvas: it runs for every slice the sheet view pre-paints.
  */
-export function printInPlace(ctx: CanvasRenderingContext2D, area: Area, at: { x: number; y: number }, theme: ThemeSnapshot = readTheme()) {
+export function printInPlace(ctx: CanvasRenderingContext2D, area: Area, at: { x: number; y: number }, theme: ThemeSnapshot = readTheme(), strength = 1) {
   const { x, y, w, h } = area;
   if (!w || !h) return;
   const pattern = wearPattern(ctx, theme);
@@ -208,11 +208,14 @@ export function printInPlace(ctx: CanvasRenderingContext2D, area: Area, at: { x:
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalCompositeOperation = 'destination-out';
-  ctx.globalAlpha = role(theme, 'print-music-wear');
+  ctx.globalAlpha = role(theme, 'print-music-wear') * strength;
   ctx.fillStyle = pattern;
   ctx.fillRect(x, y, w, h);
   ctx.restore();
 }
+
+/** The ruler's labels (bar numbers, section boxes) are printed too, a little less worn than the music. */
+export const RULER_WEAR = 0.7;
 
 // ---- gouache (the covers) ------------------------------------------------------------------------
 

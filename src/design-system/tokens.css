@@ -945,6 +945,9 @@
      at the left (under the voices) and come into the light toward the right. */
   --ds-print-stage-shadow: #120e16;
   --ds-print-stage-vignette-x: linear-gradient(90deg, rgb(0 0 0 / 0.3) 0%, rgb(0 0 0 / 0.38) 5%, rgb(0 0 0 / 0.56) 10%, rgb(0 0 0 / 0.82) 15%, #000 19.5%, #000 76%, rgb(0 0 0 / 0.8) 86%, rgb(0 0 0 / 0.6) 94%, rgb(0 0 0 / 0.46) 100%);
+  /* The sheet view fades its music into the shadow itself, under its clefs (staffView): its mask
+     only darkens the right. */
+  --ds-print-staff-vignette-x: linear-gradient(90deg, #000 0%, #000 76%, rgb(0 0 0 / 0.8) 86%, rgb(0 0 0 / 0.6) 94%, rgb(0 0 0 / 0.46) 100%);
   --ds-print-stage-vignette-y: linear-gradient(180deg, rgb(0 0 0 / 0.9) 0%, #000 6%, #000 95%, rgb(0 0 0 / 0.76) 100%);
   /* The bar ruler lies a little above the music (and below the sidebar and the controls): it is
      barely shaded at the sides, not at all from above; it casts a soft shadow down onto the music,
@@ -957,8 +960,8 @@
   --ds-print-level-cast-down: 0 var(--ds-space-compact) var(--ds-space-inline) calc(-1 * var(--ds-space-micro)) rgb(3 2 6 / 0.6), inset 0 calc(-1 * var(--ds-space-hairline)) 0 rgb(3 2 6 / 0.55);
   --ds-print-level-cast-right: var(--ds-space-compact) 0 var(--ds-space-inline) calc(-1 * var(--ds-space-micro)) rgb(3 2 6 / 0.6), inset calc(-1 * var(--ds-space-hairline)) 0 0 rgb(3 2 6 / 0.5);
   --ds-print-level-lit-top: inset 0 var(--ds-space-hairline) 0 rgb(255 238 214 / 0.12);
-  --ds-print-tray: inset 0 var(--ds-space-tight) var(--ds-space-segment) calc(-1 * var(--ds-space-hairline)) rgb(3 2 6 / 0.75), inset var(--ds-space-micro) 0 var(--ds-space-compact) calc(-1 * var(--ds-space-micro)) rgb(3 2 6 / 0.45), inset 0 calc(-1 * var(--ds-space-hairline)) 0 rgb(255 238 214 / 0.05), 0 var(--ds-space-hairline) 0 rgb(255 238 214 / 0.1), 0 calc(-1 * var(--ds-space-hairline)) 0 rgb(3 2 6 / 0.4);
-  --ds-print-tray-surface: var(--ds-material-fibre), rgb(12 9 16 / 0.55);
+  --ds-print-tray: inset 0 var(--ds-space-compact) var(--ds-space-small) calc(-1 * var(--ds-space-hairline)) rgb(3 2 6 / 0.85), inset var(--ds-space-micro) 0 var(--ds-space-snug) calc(-1 * var(--ds-space-micro)) rgb(3 2 6 / 0.55), inset 0 calc(-1 * var(--ds-space-hairline)) 0 rgb(255 238 214 / 0.06), 0 var(--ds-space-hairline) 0 rgb(255 238 214 / 0.13), 0 calc(-1 * var(--ds-space-hairline)) 0 rgb(3 2 6 / 0.5);
+  --ds-print-tray-surface: var(--ds-material-fibre), rgb(10 7 13 / 0.68);
   --ds-print-raised-surface: radial-gradient(140% 140% at 20% 15%, rgb(255 240 220 / 0.04), rgb(255 240 220 / 0) 50%, rgb(3 2 6 / 0.05));
   --ds-print-sunk-surface: linear-gradient(160deg, rgb(3 2 6 / 0.34), rgb(3 2 6 / 0.08) 60%, rgb(255 240 220 / 0.03));
   --ds-print-raised-hover: inset var(--ds-space-compact) var(--ds-space-compact) var(--ds-space-segment) calc(-1 * var(--ds-space-compact)) rgb(255 238 214 / 0.26), inset calc(-1 * var(--ds-space-compact)) calc(-1 * var(--ds-space-compact)) var(--ds-space-small) calc(-1 * var(--ds-space-compact)) rgb(3 2 6 / 0.65), var(--ds-space-micro) var(--ds-space-compact) var(--ds-space-snug) calc(-1 * var(--ds-space-micro)) rgb(3 2 6 / 0.42), calc(-1 * var(--ds-space-micro)) calc(-1 * var(--ds-space-micro)) var(--ds-space-snug) calc(-1 * var(--ds-space-micro)) rgb(255 238 214 / 0.07);
@@ -1509,6 +1512,9 @@
   --ds-print-float-filter: blur(var(--ds-space-row)) saturate(1.1);
   --ds-print-stage-shadow: #6e5536;
   --ds-print-stage-vignette-x: linear-gradient(90deg, rgb(0 0 0 / 0.35) 0%, rgb(0 0 0 / 0.55) 8%, rgb(0 0 0 / 0.85) 15%, #000 19.5%, #000 78%, rgb(0 0 0 / 0.75) 90%, rgb(0 0 0 / 0.55) 100%);
+  /* The sheet view fades its music into the shadow itself, under its clefs (staffView): its mask
+     only darkens the right. */
+  --ds-print-staff-vignette-x: linear-gradient(90deg, #000 0%, #000 78%, rgb(0 0 0 / 0.75) 90%, rgb(0 0 0 / 0.55) 100%);
   --ds-print-stage-vignette-y: linear-gradient(180deg, rgb(0 0 0 / 0.75) 0%, #000 6%, #000 95%, rgb(0 0 0 / 0.8) 100%);
   /* The bar ruler lies a little above the music (and below the sidebar and the controls): it is
      barely shaded at the sides, not at all from above; it casts a soft shadow down onto the music,
@@ -2068,6 +2074,9 @@
   --ds-print-float-filter: none;
   --ds-print-stage-shadow: transparent;
   --ds-print-stage-vignette-x: none;
+  /* The sheet view fades its music into the shadow itself, under its clefs (staffView): its mask
+     only darkens the right. */
+  --ds-print-staff-vignette-x: none;
   --ds-print-stage-vignette-y: none;
   /* The bar ruler lies a little above the music (and below the sidebar and the controls): it is
      barely shaded at the sides, not at all from above; it casts a soft shadow down onto the music,
