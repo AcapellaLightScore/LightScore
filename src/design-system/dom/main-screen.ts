@@ -215,7 +215,7 @@ export function createMainScreen(copy: MainCopy) {
           append(
             shell("span", { "aria-label": "LightScore", class: "wordmark" }, brandRecipe().wordmark),
             append(shell("span", { class: "ls-l" }, brandRecipe().script), "Light"),
-            "Score",
+            append(shell("span", { class: "ls-s" }, brandRecipe().score), "Score"),
           ),
         ),
         append(

@@ -145,7 +145,7 @@ function actionRecipe(intent: ButtonIntent, pressed: boolean, variant: "standard
     actionDisabled, "tw:leading-leading-body tw:border-(length:--ds-stroke-thin) tw:border-solid tw:whitespace-nowrap tw:cursor-pointer tw:items-center tw:justify-center",
     landing ? "tw:block tw:rounded-card tw:text-button tw:font-weight-label tw:font-control tw:mx-auto tw:mt-action tw:text-center " + controlSizeRecipe() : "tw:inline-flex " + ordinaryShape + " " + controlSizeRecipe(),
     colors[intent], pressed ? "tw:shadow-emboss-pressed" : "",
-    intent === "primary" ? printStyles.solid : "", printStyles.press,
+    intent === "primary" ? printStyles.solid : intent === "secondary" ? printStyles.raised : "", printStyles.press,
     variant === "library" ? "tw:text-center" : variant === "scan-go" || variant === "scan-ok" ? "ds-panel-scan-button tw:flex-1 tw:text-center" + (variant === "scan-ok" ? " ds-panel-scan-quiet" : "") : "",
   ].join(" ");
 }

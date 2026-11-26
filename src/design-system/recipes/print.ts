@@ -31,6 +31,17 @@ export const printStyles = {
   mix: "tw:material-paper:[:root:root_&]:[&:not([aria-pressed='true'])]:surface-print-mix-surface tw:material-paper:[:root:root_&]:[&:not([aria-pressed='true'])]:border-print-mix-edge tw:material-paper:[:root:root_&]:[&:not([aria-pressed='true'])]:shadow-print-mix-shadow tw:material-paper:[:root:root_&]:[&:not([aria-pressed='true']):hover]:border-print-mix-hover-edge",
   /** Muted, the tab is pressed in: a solid of ink with pinholes, lying in its bed. */
   muteOn: "tw:material-paper:[:root:root_&]:[&[aria-pressed='true']]:surface-print-mute-on-surface tw:material-paper:[:root:root_&]:[&[aria-pressed='true']]:border-print-mute-on-edge tw:material-paper:[:root:root_&]:[&[aria-pressed='true']]:shadow-print-mute-on-shadow",
+  /**
+   * Controls lying on the card are embossed out of it (Hochpraegung): the same paper, no frame, lit
+   * from the upper left with their shadow below right. Pressed or switched on, they sink in.
+   */
+  raised: "tw:material-paper:[:root:root_&]:[&:not([aria-pressed='true']):not(.is-solo)]:border-transparent tw:material-paper:[:root:root_&]:[&:not([aria-pressed='true']):not(.is-solo)]:bg-transparent tw:material-paper:[:root:root_&]:[&:not([aria-pressed='true']):not(.is-solo)]:[background-image:var(--ds-print-raised-surface)] tw:material-paper:[:root:root_&]:[&:not([aria-pressed='true']):not(.is-solo)]:elevation-emboss-raised tw:material-paper:[:root:root_&]:[&:not([aria-pressed='true']):not(.is-solo):hover]:elevation-print-raised-hover tw:material-paper:[:root:root_&]:[&:not(.is-solo):active]:[background-image:var(--ds-print-sunk-surface)] tw:material-paper:[:root:root_&]:[&:not(.is-solo):active]:elevation-emboss-pressed tw:material-paper:[:root:root_&]:[&[aria-pressed='true']]:[background-image:var(--ds-print-sunk-surface)]",
+  /** A sheet held above the page: a stippled shadow on the paper and a grained edge (one per radius). */
+  floatMenu: "tw:material-paper:[:root:root_&]:[border-image:var(--ds-print-float-edge-menu)] tw:material-paper:[:root:root_&]:elevation-print-float-contact",
+  floatCard: "tw:material-paper:[:root:root_&]:[border-image:var(--ds-print-float-edge-card)] tw:material-paper:[:root:root_&]:elevation-print-float-contact",
+  floatDialog: "tw:material-paper:[:root:root_&]:[border-image:var(--ds-print-float-edge-dialog)] tw:material-paper:[:root:root_&]:elevation-print-float-contact",
+  /** Gold stamped into the card (Tiefpraegung): its own foil surface, so the filter shades only the gold. */
+  goldDeboss: "tw:material-paper:surface-wordmark-surface tw:material-paper:[-webkit-background-clip:var(--ds-wordmark-vendor-clip)] tw:material-paper:[background-clip:var(--ds-wordmark-clip)] tw:material-paper:text-transparent tw:material-paper:[filter:var(--ds-print-gold-filter)]",
   /** Pressed, a control sinks into the paper and springs back when let go. */
   press: "tw:material-paper:[transition:var(--ds-print-press-transition)] tw:material-paper:[&:active]:[scale:var(--ds-print-press-scale)] tw:material-paper:[&:active]:[translate:var(--ds-print-press-shift)] tw:material-paper:[&:active]:[transition-duration:var(--ds-print-press-in-duration)]",
 } as const;

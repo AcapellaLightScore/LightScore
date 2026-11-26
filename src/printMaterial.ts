@@ -60,10 +60,12 @@ let wearTile: HTMLCanvasElement | null = null;
 let wearPaint = '';
 function wear(theme: ThemeSnapshot): HTMLCanvasElement {
   const paint = theme.color('canvas-mask').css;
-  if (wearTile && wearPaint === paint) return wearTile;
+  const tooth = role(theme, 'print-tooth');
+  if (wearTile && wearPaint === paint + tooth) return wearTile;
   const random = seeded(1905);
   const blotch = wrappingNoise(random, 9);
   const fine = wrappingNoise(random, 64);
+  const patches = wrappingNoise(random, 6);
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = TILE;
   const ctx = canvas.getContext('2d')!;
@@ -73,7 +75,11 @@ function wear(theme: ThemeSnapshot): HTMLCanvasElement {
   const img = ctx.getImageData(0, 0, TILE, TILE);
   for (let y = 0; y < TILE; y++) {
     for (let x = 0; x < TILE; x++) {
-      const a = WEAR_MEAN + (blotch(x, y) - 0.5) * WEAR_BLOTCH + (fine(x, y) - 0.5) * WEAR_GRAIN + (random() - 0.5) * 0.05;
+      let a = WEAR_MEAN + (blotch(x, y) - 0.5) * WEAR_BLOTCH + (fine(x, y) - 0.5) * WEAR_GRAIN + (random() - 0.5) * 0.05;
+      // The tooth: where the card's grain lies low the ink didn't reach -- fine specks, clean through,
+      // thick in some patches and nearly absent in others (the roller ran unevenly).
+      const patch = Math.max(0, patches(x, y) - 0.35) / 0.65;
+      if (random() < tooth * (0.03 + 0.3 * patch * patch)) a = Math.max(a, 0.7 + random() * 0.3);
       img.data[(y * TILE + x) * 4 + 3] = Math.max(0, Math.min(255, a * 255));
     }
   }
@@ -81,7 +87,7 @@ function wear(theme: ThemeSnapshot): HTMLCanvasElement {
   ctx.fillStyle = paint;
   ctx.strokeStyle = paint;
   // ...then the voids: small, round-ish, mostly faint, now and then clean through...
-  for (let i = 0; i < VOIDS; i++) {
+  for (let i = 0; i < VOIDS * (1 + 2 * tooth); i++) {
     const x = random() * TILE;
     const y = random() * TILE;
     const r = 0.6 + random() * random() * 1.8;
@@ -110,7 +116,7 @@ function wear(theme: ThemeSnapshot): HTMLCanvasElement {
   }
   ctx.globalAlpha = 1;
   wearTile = canvas;
-  wearPaint = paint;
+  wearPaint = paint + tooth;
   return canvas;
 }
 
@@ -329,7 +335,7 @@ function deckleSides(seed: number, fill: string): Record<'top' | 'bottom' | 'lef
 
 // ---- the live CSS inputs ------------------------------------------------------------------------
 
-const LIVE = ['wear-display', 'wear-fine', 'voids', 'crinkle', ...['card', 'under'].flatMap((s) => ['top', 'bottom', 'left', 'right'].map((side) => `deckle-${s}-${side}`))];
+const LIVE = ['wear-display', 'wear-fine', 'voids', 'crinkle', 'float-menu', 'float-card', 'float-dialog', ...['card', 'under'].flatMap((s) => ['top', 'bottom', 'left', 'right'].map((side) => `deckle-${s}-${side}`))];
 let appliedKey = '';
 
 /** A tile of the wear at `strength` (of its alpha), as a CSS url(). */
@@ -362,10 +368,125 @@ function keepUrl(theme: ThemeSnapshot, strength: number) {
   return `url(${c.toDataURL('image/png')})`;
 }
 
+// ---- floating sheets: menus, dialogs, the zoom control ---------------------------------------------
+// A sheet held above the page is seen by the same lamp, printed the same way: its shadow on the paper
+// is stippled, not blurred (the grain of a riso print), and its own edge is grained -- darker on the
+// sides away from the lamp, a fine lit rim toward it. One 9-slice image per corner radius, used as
+// the sheet's border-image (outside its box, and a band just inside it); nothing per frame.
+
+const FLOAT_OUT = 22; // CSS px the shadow reaches beyond the sheet
+const FLOAT_IN = 10; // CSS px of the sheet's own edge
+const FLOAT_MID = 48; // CSS px of edge that repeats along each side
+const FLOAT_K = 2; // image px per CSS px
+export const FLOAT_SLICE = (FLOAT_OUT + FLOAT_IN) * FLOAT_K;
+
+function floatEdge(theme: ThemeSnapshot, radius: number, seed: number): string {
+  const k = FLOAT_K;
+  const S = FLOAT_SLICE;
+  const N = 2 * S + FLOAT_MID * k;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = N;
+  const ctx = canvas.getContext('2d')!;
+  const img = ctx.createImageData(N, N);
+  const random = seeded(seed);
+  const shadowStrength = role(theme, 'print-float-shadow');
+  const grain = role(theme, 'print-float-grain');
+  const dark = theme.color('score-row-shadow');
+  const light = theme.color('material-light-warm');
+  const o = FLOAT_OUT * k;
+  const r = radius * k;
+  // Signed distance to the sheet (a rounded rectangle filling the image but for the outset ring).
+  const sheet = (x: number, y: number, dx = 0, dy = 0) => {
+    const half = N / 2 - o;
+    const qx = Math.abs(x - dx - N / 2) - (half - r);
+    const qy = Math.abs(y - dy - N / 2) - (half - r);
+    return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
+  };
+  const put = (i: number, c: { r: number; g: number; b: number }, a: number) => {
+    img.data[i] = c.r;
+    img.data[i + 1] = c.g;
+    img.data[i + 2] = c.b;
+    img.data[i + 3] = Math.max(img.data[i + 3], Math.min(255, a * 255));
+  };
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const i = (y * N + x) * 4;
+      const d = sheet(x + 0.5, y + 0.5);
+      if (d > 0) {
+        // The shadow, cast down and to the right, dithered: each grain dark or not, by its chance.
+        const ds = Math.max(0, sheet(x + 0.5, y + 0.5, 2.5 * k, 6 * k));
+        const p = shadowStrength * (0.15 + 0.85 * Math.exp(-((ds / (9 * k)) ** 2))) * (1 - Math.min(1, d / o) ** 2) * (ds < 1 ? 1 : 0.9);
+        if (random() < p) put(i, dark, 0.55 + random() * 0.4);
+      } else {
+        const depth = -d / k; // CSS px inside the edge
+        if (depth > FLOAT_IN) continue;
+        // Which way this bit of edge faces (the outward normal of the nearest edge, so every repeat of
+        // a side is the same): toward the lamp (upper left) or away from it.
+        const gx = sheet(x + 1.5, y + 0.5) - sheet(x - 0.5, y + 0.5);
+        const gy = sheet(x + 0.5, y + 1.5) - sheet(x + 0.5, y - 0.5);
+        const gl = Math.hypot(gx, gy) || 1;
+        const facing = (gx / gl) * 0.6 + (gy / gl) * 0.8; // +1: away from the lamp, -1: toward it
+        const away = Math.max(0, facing);
+        const toward = Math.max(0, -facing);
+        const fall = 1 - depth / FLOAT_IN;
+        if (random() < grain * away * fall * fall * 0.9) put(i, dark, 0.45 + random() * 0.45);
+        else if (random() < grain * toward * fall ** 3 * 0.5) put(i, light, 0.18 + random() * 0.22);
+        // The lit rim: a hair along the edge facing the lamp.
+        if (depth < 1.5 && toward > 0.1) put(i, light, 0.18 + 0.35 * toward);
+        else if (depth < 1.5 && away > 0.2) put(i, dark, 0.35 + 0.4 * away);
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  return `url(${canvas.toDataURL()})`;
+}
+
+// ---- gold pressed into the card (debossed foil) ----------------------------------------------------
+// The gold is stamped in: the upper wall of each stroke lies in shade, the lower one catches the
+// lamp, and the card's lip below the stroke is lit. One SVG filter, its colours from the theme;
+// elements take it through the --ds-print-gold-filter role (url(#ds-print-deboss)).
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function deboss(theme: ThemeSnapshot) {
+  let svg = document.getElementById('ds-print-filters') as SVGSVGElement | null;
+  if (!svg) {
+    svg = document.createElementNS(SVG_NS, 'svg') as SVGSVGElement;
+    svg.id = 'ds-print-filters';
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('width', '0');
+    svg.setAttribute('height', '0');
+    svg.style.position = 'absolute';
+    svg.innerHTML = `<defs><filter id="ds-print-deboss" x="-10%" y="-25%" width="120%" height="150%" color-interpolation-filters="sRGB">
+  <feComponentTransfer in="SourceAlpha" result="solid"><feFuncA type="linear" slope="3" intercept="-1"/></feComponentTransfer>
+  <feComponentTransfer in="solid" result="hole"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer>
+  <feOffset in="hole" dx="0.35" dy="0.9" result="fromAbove"/><feGaussianBlur in="fromAbove" stdDeviation="0.45" result="fromAboveSoft"/>
+  <feFlood class="deboss-shade"/><feComposite operator="in" in2="fromAboveSoft"/><feComposite operator="in" in2="solid" result="wall"/>
+  <feOffset in="hole" dx="-0.2" dy="-0.7" result="fromBelow"/><feGaussianBlur in="fromBelow" stdDeviation="0.4" result="fromBelowSoft"/>
+  <feFlood class="deboss-light"/><feComposite operator="in" in2="fromBelowSoft"/><feComposite operator="in" in2="solid" result="floor"/>
+  <feOffset in="solid" dy="0.6" result="below"/><feComposite in="below" in2="solid" operator="out" result="lipShape"/>
+  <feFlood class="deboss-lip"/><feComposite operator="in" in2="lipShape" result="lip"/>
+  <feMerge><feMergeNode in="lip"/><feMergeNode in="SourceGraphic"/><feMergeNode in="wall"/><feMergeNode in="floor"/></feMerge>
+</filter></defs>`;
+    document.body.appendChild(svg);
+  }
+  const set = (cls: string, color: { css: string }, opacity: number) => {
+    const flood = svg.querySelector(`.${cls}`);
+    flood?.setAttribute('flood-color', color.css);
+    flood?.setAttribute('flood-opacity', String(opacity));
+    // (Unused by a flood, but SVG paints all the same: kept in the theme's paint like the rest.)
+    flood?.setAttribute('lighting-color', color.css);
+    flood?.setAttribute('stop-color', color.css);
+  };
+  const depth = role(theme, 'print-gold-deboss');
+  set('deboss-shade', theme.color('score-row-shadow'), 0.55 * depth);
+  set('deboss-light', theme.color('material-light-warm'), 0.4 * depth);
+  set('deboss-lip', theme.color('material-light-warm'), 0.07 * depth);
+}
+
 function applyCss(theme: ThemeSnapshot) {
   const root = document.documentElement.style;
   const strengths = ['print-type-wear', 'print-type-wear-fine', 'print-solid-voids', 'print-foil-crinkle'].map((r) => role(theme, r));
-  const key = JSON.stringify([theme.material.surface, strengths, theme.color('canvas-mask').css, theme.color('page-background').css]);
+  const extra = ['print-tooth', 'print-float-shadow', 'print-float-grain', 'print-gold-deboss'].map((r) => role(theme, r));
+  const key = JSON.stringify([theme.material.surface, strengths, extra, theme.color('canvas-mask').css, theme.color('page-background').css, theme.color('score-row-shadow').css, theme.color('material-light-warm').css]);
   if (key === appliedKey) return;
   appliedKey = key;
   if (theme.material.surface !== 'paper' || strengths.every((s) => !s)) {
@@ -373,6 +494,8 @@ function applyCss(theme: ThemeSnapshot) {
     return;
   }
   const [display, fine, voids, crinkle] = strengths;
+  for (const [name, radius, seed] of [['menu', 8, 3109], ['card', 12, 3203], ['dialog', 18, 3301]] as const) root.setProperty(`--ds-print-float-${name}-live`, floatEdge(theme, radius, seed));
+  deboss(theme);
   root.setProperty('--ds-print-wear-display-live', keepUrl(theme, display));
   root.setProperty('--ds-print-wear-fine-live', keepUrl(theme, fine));
   root.setProperty('--ds-print-voids-live', wearUrl(theme, voids, theme.color('page-background').css));
@@ -389,7 +512,7 @@ function applyCss(theme: ThemeSnapshot) {
 // does -- the mouse, or a phone turning (where the browser tells without asking). The band is the
 // first background layer of the foil surface; only its position moves. Still for anyone who asked
 // for less motion.
-const FOIL = '.wordmark[aria-label="LightScore"], .ded-name';
+const FOIL = '.wordmark[aria-label="LightScore"], .ls-s, .ded-name';
 let sheenStarted = false;
 
 function startSheen() {

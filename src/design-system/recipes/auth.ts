@@ -1,3 +1,4 @@
+import { printStyles } from "./print";
 /** Shared pre-hydration auth/brand composition. */
 
 
@@ -5,6 +6,7 @@ export function brandRecipe() {
   return {
     wordmark: "wordmark tw:type-wordmark-font tw:tracking-wordmark-letter-spacing tw:whitespace-nowrap tw:[&[aria-label='LightScore']]:surface-wordmark-surface tw:[&[aria-label='LightScore']]:[-webkit-background-clip:var(--ds-wordmark-vendor-clip)] tw:[&[aria-label='LightScore']]:[background-clip:var(--ds-wordmark-clip)] tw:[&[aria-label='LightScore']]:text-transparent tw:[font-family:var(--ds-type-wordmark-font-family)] tw:[font-weight:var(--ds-type-wordmark-font-weight)] tw:[font-synthesis:var(--ds-type-wordmark-font-synthesis)]",
     script: "ls-l tw:surface-material-clear tw:bg-clip-border tw:bg-clip-border tw:type-title-l-font tw:tracking-(--ds-tracking-zero) tw:mr-title-l-margin-right tw:text-material-title-l-color tw:[text-shadow:var(--ds-material-title-l-text-shadow)]",
+    score: "ls-s" + " " + printStyles.goldDeboss,
     group: "brand tw:inline-flex tw:items-center tw:gap-inline tw:min-w-flush",
     mark: "mark tw:w-heading tw:h-heading tw:flex-none",
     ribbons: "ribbons tw:absolute tw:inset-flush tw:w-full tw:h-full tw:pointer-events-none",
