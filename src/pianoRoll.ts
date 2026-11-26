@@ -7,6 +7,7 @@ import { backlight, BACKLIGHT_REACH, NIGHT_PAPER, paintPaper, type PaperFrame } 
 import { Lantern, type Flare } from './lantern';
 import { deviceChoice } from './design';
 import { drawRulerSignature, signatureChanges, transposeFifths, type SignatureChange } from './signatures';
+import { drawPlayheadMarker } from './printMaterial';
 
 export const BASE_PIXELS_PER_BEAT = 70;
 // The only place a click/drag sets the playback start point or defines a loop region -- clicks in
@@ -897,16 +898,23 @@ export class PianoRoll {
     if (playheadXPos >= -36 && playheadXPos <= width + 36) {
       // The lantern's reading line is lit by the lamp behind it -- the line itself only a fine mark.
       if (!LANTERN) playheadBeam(ctx, playheadXPos, 0, height);
+      // On paper the line starts on the note ground (the ruler lies above it, D53); its marker is a
+      // fold of paper, and the lamp catches the ruler's lower edge.
+      const onPaper = this.theme.material.surface === 'paper';
+      const top = onPaper ? RULER_HEIGHT_PX : 0;
       ctx.fillStyle = LANTERN ? paper(Number(readTheme().roles['score-lantern-playhead-alpha'])) : PAPER;
-      if (LANTERN) ctx.fillRect(playheadXPos - 0.5, 0, 1, height);
-      else ctx.fillRect(playheadXPos - 1, 0, 2, height);
-      ctx.fillStyle = PAPER;
-      ctx.beginPath();
-      ctx.moveTo(playheadXPos - 6, 0);
-      ctx.lineTo(playheadXPos + 6, 0);
-      ctx.lineTo(playheadXPos, 8);
-      ctx.closePath();
-      ctx.fill();
+      if (LANTERN) ctx.fillRect(playheadXPos - 0.5, top, 1, height - top);
+      else ctx.fillRect(playheadXPos - 1, top, 2, height - top);
+      if (onPaper) drawPlayheadMarker(ctx, playheadXPos, RULER_HEIGHT_PX, this.theme);
+      else {
+        ctx.fillStyle = PAPER;
+        ctx.beginPath();
+        ctx.moveTo(playheadXPos - 6, 0);
+        ctx.lineTo(playheadXPos + 6, 0);
+        ctx.lineTo(playheadXPos, 8);
+        ctx.closePath();
+        ctx.fill();
+      }
     }
   }
 

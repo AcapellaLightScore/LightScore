@@ -8,7 +8,7 @@ import { around, SliceRing } from './sliceRing';
 
 import { drawRulerSignature, signatureChanges, type SignatureChange } from './signatures';
 import { drawInkMark, layoutMarks, MARKS_ON, type MarkLayout } from './goldInk';
-import { InkLayer, printInPlace, printsMusic } from './printMaterial';
+import { drawPlayheadMarker, InkLayer, printInPlace, printsMusic } from './printMaterial';
 
 // Wider than the piano roll's (70): noteheads, stems, accidentals and syllables need the room.
 // A phone draws its staves larger (see updateFill), so it starts from less to show about a bar.
@@ -1060,21 +1060,24 @@ export class StaffView {
     if (playheadPx >= G - 16 && playheadPx <= width + 16) {
       if ((this.theme.material.surface === 'paper')) {
         // As on the punched roll: the lamp behind the paper shows as a faint strip along the line.
-        readingStrip(ctx, playheadPx, 0, height);
+        // The line starts on the note ground (the ruler lies above it, D53); its marker is a fold of
+        // paper, and the lamp catches the ruler's lower edge.
+        readingStrip(ctx, playheadPx, STAFF_RULER_HEIGHT_PX, height - STAFF_RULER_HEIGHT_PX);
         ctx.fillStyle = paper(0.72);
-        ctx.fillRect(playheadPx - 0.5, 0, 1, height);
+        ctx.fillRect(playheadPx - 0.5, STAFF_RULER_HEIGHT_PX, 1, height - STAFF_RULER_HEIGHT_PX);
+        drawPlayheadMarker(ctx, playheadPx, STAFF_RULER_HEIGHT_PX, this.theme);
       } else {
         playheadBeam(ctx, playheadPx, 0, height);
         ctx.fillStyle = PAPER;
         ctx.fillRect(playheadPx - 1, 0, 2, height);
+        ctx.fillStyle = PAPER;
+        ctx.beginPath();
+        ctx.moveTo(playheadPx - 6, 0);
+        ctx.lineTo(playheadPx + 6, 0);
+        ctx.lineTo(playheadPx, 8);
+        ctx.closePath();
+        ctx.fill();
       }
-      ctx.fillStyle = PAPER;
-      ctx.beginPath();
-      ctx.moveTo(playheadPx - 6, 0);
-      ctx.lineTo(playheadPx + 6, 0);
-      ctx.lineTo(playheadPx, 8);
-      ctx.closePath();
-      ctx.fill();
     }
   }
 

@@ -948,10 +948,17 @@
   --ds-print-stage-vignette-y: linear-gradient(180deg, rgb(0 0 0 / 0.9) 0%, #000 6%, #000 95%, rgb(0 0 0 / 0.76) 100%);
   /* The bar ruler lies a little above the music (and below the sidebar and the controls): it is
      barely shaded at the sides, not at all from above; it casts a soft shadow down onto the music,
-     and its upper edge catches the lamp. */
+     under the panels above it, it lies in their shadow. */
   --ds-print-ruler-vignette: linear-gradient(90deg, rgb(0 0 0 / 0.7) 0%, rgb(0 0 0 / 0.84) 8%, #000 18%, #000 84%, rgb(0 0 0 / 0.78) 100%);
   --ds-print-ruler-cast: linear-gradient(180deg, rgb(3 2 6 / 0.7), rgb(3 2 6 / 0.3) 35%, rgb(3 2 6 / 0));
-  --ds-print-ruler-edge: linear-gradient(90deg, rgb(255 238 214 / 0.05), rgb(255 238 214 / 0.16) 25%, rgb(255 238 214 / 0.12) 75%, rgb(255 238 214 / 0.04));
+  /* Level 1 (header, sidebar, chips, transport, overview) over the stage: the edges facing away from
+     the lamp darken and cast a soft shadow onto it; those facing the lamp catch it. Tempo and key
+     sit in trays pressed into the card. */
+  --ds-print-level-cast-down: 0 var(--ds-space-compact) var(--ds-space-inline) calc(-1 * var(--ds-space-micro)) rgb(3 2 6 / 0.6), inset 0 calc(-1 * var(--ds-space-hairline)) 0 rgb(3 2 6 / 0.55);
+  --ds-print-level-cast-right: var(--ds-space-compact) 0 var(--ds-space-inline) calc(-1 * var(--ds-space-micro)) rgb(3 2 6 / 0.6), inset calc(-1 * var(--ds-space-hairline)) 0 0 rgb(3 2 6 / 0.5);
+  --ds-print-level-lit-top: inset 0 var(--ds-space-hairline) 0 rgb(255 238 214 / 0.12);
+  --ds-print-tray: inset 0 var(--ds-space-tight) var(--ds-space-segment) calc(-1 * var(--ds-space-hairline)) rgb(3 2 6 / 0.75), inset var(--ds-space-micro) 0 var(--ds-space-compact) calc(-1 * var(--ds-space-micro)) rgb(3 2 6 / 0.45), inset 0 calc(-1 * var(--ds-space-hairline)) 0 rgb(255 238 214 / 0.05), 0 var(--ds-space-hairline) 0 rgb(255 238 214 / 0.1), 0 calc(-1 * var(--ds-space-hairline)) 0 rgb(3 2 6 / 0.4);
+  --ds-print-tray-surface: var(--ds-material-fibre), rgb(12 9 16 / 0.55);
   --ds-print-raised-surface: radial-gradient(140% 140% at 20% 15%, rgb(255 240 220 / 0.04), rgb(255 240 220 / 0) 50%, rgb(3 2 6 / 0.05));
   --ds-print-sunk-surface: linear-gradient(160deg, rgb(3 2 6 / 0.34), rgb(3 2 6 / 0.08) 60%, rgb(255 240 220 / 0.03));
   --ds-print-raised-hover: inset var(--ds-space-compact) var(--ds-space-compact) var(--ds-space-segment) calc(-1 * var(--ds-space-compact)) rgb(255 238 214 / 0.26), inset calc(-1 * var(--ds-space-compact)) calc(-1 * var(--ds-space-compact)) var(--ds-space-small) calc(-1 * var(--ds-space-compact)) rgb(3 2 6 / 0.65), var(--ds-space-micro) var(--ds-space-compact) var(--ds-space-snug) calc(-1 * var(--ds-space-micro)) rgb(3 2 6 / 0.42), calc(-1 * var(--ds-space-micro)) calc(-1 * var(--ds-space-micro)) var(--ds-space-snug) calc(-1 * var(--ds-space-micro)) rgb(255 238 214 / 0.07);
@@ -1505,10 +1512,17 @@
   --ds-print-stage-vignette-y: linear-gradient(180deg, rgb(0 0 0 / 0.75) 0%, #000 6%, #000 95%, rgb(0 0 0 / 0.8) 100%);
   /* The bar ruler lies a little above the music (and below the sidebar and the controls): it is
      barely shaded at the sides, not at all from above; it casts a soft shadow down onto the music,
-     and its upper edge catches the lamp. */
+     under the panels above it, it lies in their shadow. */
   --ds-print-ruler-vignette: linear-gradient(90deg, rgb(0 0 0 / 0.8) 0%, rgb(0 0 0 / 0.9) 8%, #000 18%, #000 84%, rgb(0 0 0 / 0.86) 100%);
   --ds-print-ruler-cast: linear-gradient(180deg, rgb(90 60 25 / 0.28), rgb(90 60 25 / 0.1) 40%, rgb(90 60 25 / 0));
-  --ds-print-ruler-edge: linear-gradient(90deg, rgb(255 252 240 / 0.3), rgb(255 252 240 / 0.6) 25%, rgb(255 252 240 / 0.5) 75%, rgb(255 252 240 / 0.25));
+  /* Level 1 (header, sidebar, chips, transport, overview) over the stage: the edges facing away from
+     the lamp darken and cast a soft shadow onto it; those facing the lamp catch it. Tempo and key
+     sit in trays pressed into the card. */
+  --ds-print-level-cast-down: 0 var(--ds-space-compact) var(--ds-space-inline) calc(-1 * var(--ds-space-micro)) rgb(90 60 25 / 0.28), inset 0 calc(-1 * var(--ds-space-hairline)) 0 rgb(90 60 25 / 0.25);
+  --ds-print-level-cast-right: var(--ds-space-compact) 0 var(--ds-space-inline) calc(-1 * var(--ds-space-micro)) rgb(90 60 25 / 0.28), inset calc(-1 * var(--ds-space-hairline)) 0 0 rgb(90 60 25 / 0.22);
+  --ds-print-level-lit-top: inset 0 var(--ds-space-hairline) 0 rgb(255 252 240 / 0.7);
+  --ds-print-tray: inset 0 var(--ds-space-tight) var(--ds-space-segment) calc(-1 * var(--ds-space-hairline)) rgb(90 60 25 / 0.3), inset var(--ds-space-micro) 0 var(--ds-space-compact) calc(-1 * var(--ds-space-micro)) rgb(90 60 25 / 0.18), 0 var(--ds-space-hairline) 0 rgb(255 252 240 / 0.75), 0 calc(-1 * var(--ds-space-hairline)) 0 rgb(90 60 25 / 0.2);
+  --ds-print-tray-surface: var(--ds-material-fibre), rgb(205 185 145 / 0.35);
   --ds-print-raised-surface: linear-gradient(160deg, rgb(255 252 240 / 0.4), rgb(255 252 240 / 0) 45%, rgb(90 60 25 / 0.08));
   --ds-print-sunk-surface: linear-gradient(160deg, rgb(90 60 25 / 0.14), rgb(90 60 25 / 0.03) 60%, rgb(255 252 240 / 0.2));
   --ds-print-raised-hover: var(--ds-shadow-emboss-raised);
@@ -2057,10 +2071,17 @@
   --ds-print-stage-vignette-y: none;
   /* The bar ruler lies a little above the music (and below the sidebar and the controls): it is
      barely shaded at the sides, not at all from above; it casts a soft shadow down onto the music,
-     and its upper edge catches the lamp. */
+     under the panels above it, it lies in their shadow. */
   --ds-print-ruler-vignette: none;
   --ds-print-ruler-cast: none;
-  --ds-print-ruler-edge: none;
+  /* Level 1 (header, sidebar, chips, transport, overview) over the stage: the edges facing away from
+     the lamp darken and cast a soft shadow onto it; those facing the lamp catch it. Tempo and key
+     sit in trays pressed into the card. */
+  --ds-print-level-cast-down: none;
+  --ds-print-level-cast-right: none;
+  --ds-print-level-lit-top: none;
+  --ds-print-tray: none;
+  --ds-print-tray-surface: none;
   --ds-print-raised-surface: none;
   --ds-print-sunk-surface: none;
   --ds-print-raised-hover: none;
@@ -2718,6 +2739,11 @@
   --ds-delay-dedication-write: 0.25s;
 }
 @theme inline {
+  --elevation-print-level-cast-down: var(--ds-print-level-cast-down);
+  --elevation-print-level-cast-right: var(--ds-print-level-cast-right);
+  --elevation-print-level-lit-top: var(--ds-print-level-lit-top);
+  --elevation-print-tray: var(--ds-print-tray);
+  --surface-print-tray-surface: var(--ds-print-tray-surface);
   --elevation-print-raised-hover: var(--ds-print-raised-hover);
   --shadow-print-mix-shadow: var(--ds-print-mix-shadow);
   --shadow-print-mute-on-shadow: var(--ds-print-mute-on-shadow);

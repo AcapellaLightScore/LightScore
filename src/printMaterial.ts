@@ -479,3 +479,110 @@ export function initPrintMaterial() {
   subscribeTheme((theme) => applyCss(theme), { immediate: true });
   startSheen();
 }
+
+// ---- the playhead's marker and the lamp on the ruler's edge (paper) --------------------------------
+// The marker is a small fold of the score's paper: its facet toward the lamp (upper left) lit, the
+// other in shade, a lit rim along its top, a soft shadow below right. The reading line's lamp, on
+// the note ground just below the ruler, lights the ruler's lower edge where it faces it: a warm
+// reflection, strongest at the line. Both are painted once per theme and scale as small sprites;
+// per frame they are two small copies at the line.
+
+const MARKER_W = 14; // CSS px
+const MARKER_H = 10;
+const MARKER_PAD = 4;
+const GLINT_REACH = 90; // CSS px either side of the line
+const GLINT_H = 6;
+let markerSprites: { key: string; marker: HTMLCanvasElement; glint: HTMLCanvasElement } | null = null;
+
+function sprite(w: number, h: number, scale: number, paint: (ctx: CanvasRenderingContext2D) => void): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = Math.max(1, Math.ceil(w * scale));
+  c.height = Math.max(1, Math.ceil(h * scale));
+  const ctx = c.getContext('2d')!;
+  ctx.scale(scale, scale);
+  paint(ctx);
+  return c;
+}
+
+function playheadSprites(theme: ThemeSnapshot, scale: number) {
+  const key = `${theme.revision}|${scale}`;
+  if (markerSprites?.key === key) return markerSprites;
+  const paper = theme.color('score-paper');
+  const lamp = theme.color('material-lamp');
+  const shade = theme.color('score-row-shadow');
+  const W = MARKER_W + 2 * MARKER_PAD;
+  const H = MARKER_H + 2 * MARKER_PAD;
+  const marker = sprite(W, H, scale, (ctx) => {
+    const x0 = MARKER_PAD;
+    const y0 = MARKER_PAD - 1;
+    const mid = x0 + MARKER_W / 2;
+    const tri = () => {
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x0 + MARKER_W, y0);
+      ctx.lineTo(mid, y0 + MARKER_H);
+      ctx.closePath();
+    };
+    // Its shadow on the ruler, below right.
+    ctx.save();
+    ctx.shadowColor = shade.rgba(0.6);
+    ctx.shadowBlur = 2.5 * scale;
+    ctx.shadowOffsetX = 0.8 * scale;
+    ctx.shadowOffsetY = 1.4 * scale;
+    ctx.fillStyle = paper.css;
+    tri();
+    ctx.fill();
+    ctx.restore();
+    // The two facets of the fold: toward the lamp lit, away from it in shade.
+    ctx.save();
+    tri();
+    ctx.clip();
+    const lit = ctx.createLinearGradient(x0, y0, mid, y0 + MARKER_H);
+    lit.addColorStop(0, paper.css);
+    lit.addColorStop(1, paper.rgba(0.92));
+    ctx.fillStyle = lit;
+    ctx.fillRect(x0, y0, MARKER_W / 2, MARKER_H);
+    const dark = ctx.createLinearGradient(mid, y0, x0 + MARKER_W, y0 + MARKER_H);
+    dark.addColorStop(0, shade.rgba(0.28));
+    dark.addColorStop(1, shade.rgba(0.42));
+    ctx.fillStyle = paper.css;
+    ctx.fillRect(mid, y0, MARKER_W / 2, MARKER_H);
+    ctx.fillStyle = dark;
+    ctx.fillRect(mid, y0, MARKER_W / 2, MARKER_H);
+    // The crease, and the lit rim along the top where the fold faces the lamp.
+    ctx.fillStyle = shade.rgba(0.25);
+    ctx.fillRect(mid - 0.25, y0, 0.5, MARKER_H);
+    ctx.fillStyle = lamp.rgba(0.55);
+    ctx.fillRect(x0, y0, MARKER_W / 2 + 1, 0.8);
+    ctx.restore();
+  });
+  const glint = sprite(2 * GLINT_REACH, GLINT_H, scale, (ctx) => {
+    const g = ctx.createLinearGradient(0, 0, 2 * GLINT_REACH, 0);
+    for (let i = 0; i <= 12; i++) {
+      const t = i / 12;
+      g.addColorStop(t, lamp.rgba(Number(Math.exp(-(((t - 0.5) / 0.18) ** 2)).toFixed(4))));
+    }
+    // The edge itself, a hair bright; a soft halo above and below it.
+    ctx.globalAlpha = 0.16;
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 2 * GLINT_REACH, GLINT_H);
+    ctx.globalAlpha = 0.28;
+    ctx.fillRect(0, GLINT_H / 2 - 1.5, 2 * GLINT_REACH, 3);
+    ctx.globalAlpha = 0.75;
+    ctx.fillRect(0, GLINT_H / 2 - 0.5, 2 * GLINT_REACH, 1);
+  });
+  markerSprites = { key, marker, glint };
+  return markerSprites;
+}
+
+/**
+ * The playhead's marker on paper, and the lamp's reflection on the ruler's lower edge, at the line
+ * `x` (in `ctx`'s current units; the ruler ends at `rulerBottom`). See playheadSprites.
+ */
+export function drawPlayheadMarker(ctx: CanvasRenderingContext2D, x: number, rulerBottom: number, theme: ThemeSnapshot = readTheme()) {
+  const m = ctx.getTransform();
+  const scale = Math.round(Math.hypot(m.a, m.b) * 100) / 100;
+  const { marker, glint } = playheadSprites(theme, scale);
+  ctx.drawImage(glint, x - GLINT_REACH, rulerBottom - GLINT_H / 2, 2 * GLINT_REACH, GLINT_H);
+  ctx.drawImage(marker, x - MARKER_W / 2 - MARKER_PAD, 1 - MARKER_PAD, MARKER_W + 2 * MARKER_PAD, MARKER_H + 2 * MARKER_PAD);
+}

@@ -10,7 +10,7 @@ export function appShellRecipe() {
     landing: "tw:[#app.mode-landing_&]:flex tw:relative tw:select-none tw:select-none tw:touch-callout-none tw:flex-col tw:items-center tw:justify-center-safe tw:gap-landing-gap tw:p-landing-padding tw:box-border tw:overflow-y-auto tw:overflow-x-hidden tw:[&>*]:shrink-0 tw:[:root[data-title='zeile']_&]:gap-landing-gap-written tw:[:root[data-title='zeile']_&]:pb-landing-padding-bottom tw:[:root[data-title='buehne']_&]:gap-landing-gap-written tw:[:root[data-title='buehne']_&]:pb-landing-padding-bottom",
     library: "tw:[#app.mode-library_&]:flex tw:relative tw:flex-col",
     player: "tw:[#app.mode-player_&]:grid",
-    overview: "overview tw:reduced-transparency:[-webkit-backdrop-filter:none] tw:reduced-transparency:[backdrop-filter:none] tw:reduced-transparency:surface-surface-raised",
+    overview: "overview tw:reduced-transparency:[-webkit-backdrop-filter:none] tw:reduced-transparency:[backdrop-filter:none] tw:reduced-transparency:surface-surface-raised" + " " + printStyles.litTop,
     stage: "stage tw:surface-material-stage-background tw:material-paper:[:root:root_&]:[background:var(--ds-print-stage-shadow)]",
     layer: "stage-layer tw:absolute tw:inset-flush tw:w-full tw:h-full tw:pointer-events-none tw:opacity-opacity-hidden tw:will-change-(--ds-compositor-opacity)",
   } as const;
