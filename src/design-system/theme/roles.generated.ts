@@ -696,6 +696,8 @@ export const themeRoleNames = [
   "print-field-focus",
   "print-field-focus-edge",
   "print-field-surface",
+  "print-float-filter",
+  "print-float-surface",
   "print-foil-band",
   "print-foil-crinkle",
   "print-font-music",

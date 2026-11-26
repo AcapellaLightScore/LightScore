@@ -126,3 +126,5 @@ retained parity variants, guard exceptions and verification limitations.
 **D51 (owner).** Druck & Papier: the paper families print their type, solids, fields and library cards as material under one lamp. Ink is worn and pressed, solids have pinholes in a bed, cards are deckle-edged sheets, gold is foil with a moving sheen, covers are gouache on night paper, and the sheet view's music is printed into the paper. All values are theme tokens (`--ds-print-*`); velvet is unchanged. Live inputs come from `printMaterial.ts`, recipes from `recipes/print.ts`.
 
 **D52 (owner, amends D03).** The library heading names the ensemble and is a named title: Baltimore Title in capitals with heading tracking, as in the prototype; the ensemble switch inherits its case and tracking. Instructional headings remain Atkinson.
+
+**D53 (owner).** Light and paper: only the voices' light, the reading-line lamp and the live dot glow; paper, ink, gold and embossing reflect the one lamp. Floating sheets are thin paper that lets only glows shimmer through; controls on the card are blind-embossed; gold is stamped in; the roll and the sheet lie recessed in a box.
