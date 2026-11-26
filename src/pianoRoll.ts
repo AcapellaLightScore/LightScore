@@ -899,13 +899,13 @@ export class PianoRoll {
       // The lantern's reading line is lit by the lamp behind it -- the line itself only a fine mark.
       if (!LANTERN) playheadBeam(ctx, playheadXPos, 0, height);
       // On paper the line starts on the note ground (the ruler lies above it, D53); its marker is a
-      // fold of paper, and the lamp catches the ruler's lower edge.
+      // fold of paper, and the lamp catches the edges facing it (the ruler's, the level's below).
       const onPaper = this.theme.material.surface === 'paper';
       const top = onPaper ? RULER_HEIGHT_PX : 0;
       ctx.fillStyle = LANTERN ? paper(Number(readTheme().roles['score-lantern-playhead-alpha'])) : PAPER;
       if (LANTERN) ctx.fillRect(playheadXPos - 0.5, top, 1, height - top);
       else ctx.fillRect(playheadXPos - 1, top, 2, height - top);
-      if (onPaper) drawPlayheadMarker(ctx, playheadXPos, RULER_HEIGHT_PX, this.theme);
+      if (onPaper) drawPlayheadMarker(ctx, playheadXPos, RULER_HEIGHT_PX, height, this.theme);
       else {
         ctx.fillStyle = PAPER;
         ctx.beginPath();

@@ -1061,11 +1061,11 @@ export class StaffView {
       if ((this.theme.material.surface === 'paper')) {
         // As on the punched roll: the lamp behind the paper shows as a faint strip along the line.
         // The line starts on the note ground (the ruler lies above it, D53); its marker is a fold of
-        // paper, and the lamp catches the ruler's lower edge.
+        // paper, and the lamp catches the edges facing it (the ruler's, the level's below).
         readingStrip(ctx, playheadPx, STAFF_RULER_HEIGHT_PX, height - STAFF_RULER_HEIGHT_PX);
         ctx.fillStyle = paper(0.72);
         ctx.fillRect(playheadPx - 0.5, STAFF_RULER_HEIGHT_PX, 1, height - STAFF_RULER_HEIGHT_PX);
-        drawPlayheadMarker(ctx, playheadPx, STAFF_RULER_HEIGHT_PX, this.theme);
+        drawPlayheadMarker(ctx, playheadPx, STAFF_RULER_HEIGHT_PX, height, this.theme);
       } else {
         playheadBeam(ctx, playheadPx, 0, height);
         ctx.fillStyle = PAPER;

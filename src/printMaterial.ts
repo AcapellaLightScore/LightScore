@@ -490,8 +490,9 @@ export function initPrintMaterial() {
 const MARKER_W = 14; // CSS px
 const MARKER_H = 10;
 const MARKER_PAD = 4;
-const GLINT_REACH = 90; // CSS px either side of the line
-const GLINT_H = 6;
+const GLINT_REACH = 110; // CSS px either side of the line
+const GLINT_H = 10;
+const GLINT_BOTTOM = 1; // (the box already shades the stage's lower edge a little)
 let markerSprites: { key: string; marker: HTMLCanvasElement; glint: HTMLCanvasElement } | null = null;
 
 function sprite(w: number, h: number, scale: number, paint: (ctx: CanvasRenderingContext2D) => void): HTMLCanvasElement {
@@ -557,32 +558,38 @@ function playheadSprites(theme: ThemeSnapshot, scale: number) {
     ctx.restore();
   });
   const glint = sprite(2 * GLINT_REACH, GLINT_H, scale, (ctx) => {
+    // Soft both ways: strongest at the line and on the edge itself, fading along it and off it.
     const g = ctx.createLinearGradient(0, 0, 2 * GLINT_REACH, 0);
-    for (let i = 0; i <= 12; i++) {
-      const t = i / 12;
-      g.addColorStop(t, lamp.rgba(Number(Math.exp(-(((t - 0.5) / 0.18) ** 2)).toFixed(4))));
+    for (let i = 0; i <= 16; i++) {
+      const t = i / 16;
+      g.addColorStop(t, lamp.rgba(Number(Math.exp(-(((t - 0.5) / 0.24) ** 2)).toFixed(4))));
     }
-    // The edge itself, a hair bright; a soft halo above and below it.
-    ctx.globalAlpha = 0.16;
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, 2 * GLINT_REACH, GLINT_H);
-    ctx.globalAlpha = 0.28;
-    ctx.fillRect(0, GLINT_H / 2 - 1.5, 2 * GLINT_REACH, 3);
-    ctx.globalAlpha = 0.75;
-    ctx.fillRect(0, GLINT_H / 2 - 0.5, 2 * GLINT_REACH, 1);
+    const rows = Math.ceil(GLINT_H * scale);
+    for (let r = 0; r < rows; r++) {
+      const y = (r + 0.5) / scale;
+      ctx.globalAlpha = 0.42 * Math.exp(-(((y - GLINT_H / 2) / 1.6) ** 2));
+      ctx.fillRect(0, r / scale, 2 * GLINT_REACH, 1 / scale);
+    }
   });
   markerSprites = { key, marker, glint };
   return markerSprites;
 }
 
 /**
- * The playhead's marker on paper, and the lamp's reflection on the ruler's lower edge, at the line
- * `x` (in `ctx`'s current units; the ruler ends at `rulerBottom`). See playheadSprites.
+ * The playhead's marker on paper, and the lamp's reflection on the edges facing it -- the ruler's
+ * lower edge (`rulerBottom`) and the edge of the level below the stage (`bottom`) -- at the line `x`
+ * (in `ctx`'s current units). See playheadSprites.
  */
-export function drawPlayheadMarker(ctx: CanvasRenderingContext2D, x: number, rulerBottom: number, theme: ThemeSnapshot = readTheme()) {
+export function drawPlayheadMarker(ctx: CanvasRenderingContext2D, x: number, rulerBottom: number, bottom: number, theme: ThemeSnapshot = readTheme()) {
   const m = ctx.getTransform();
   const scale = Math.round(Math.hypot(m.a, m.b) * 100) / 100;
   const { marker, glint } = playheadSprites(theme, scale);
   ctx.drawImage(glint, x - GLINT_REACH, rulerBottom - GLINT_H / 2, 2 * GLINT_REACH, GLINT_H);
+  const alpha = ctx.globalAlpha;
+  ctx.globalAlpha = alpha * GLINT_BOTTOM;
+  // (Just inside the stage: the edge itself is the level below's own lit hairline.)
+  ctx.drawImage(glint, x - GLINT_REACH, bottom - GLINT_H / 2 - 2, 2 * GLINT_REACH, GLINT_H);
+  ctx.globalAlpha = alpha;
   ctx.drawImage(marker, x - MARKER_W / 2 - MARKER_PAD, 1 - MARKER_PAD, MARKER_W + 2 * MARKER_PAD, MARKER_H + 2 * MARKER_PAD);
 }
