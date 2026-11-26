@@ -988,6 +988,7 @@ export class StaffView {
     const height = this.cssHeight;
     if (width <= 0 || height <= 0) return;
     const G = this.gutterPx;
+    const L = this.musicLeft();
     const k = this.dpr * this.fill; // device px per drawing unit
 
     const startBeat = displayBeat - (this.playheadX() - G) / this.pixelsPerBeat;
@@ -1006,6 +1007,7 @@ export class StaffView {
       // shows its inside.
       const frame = { x: this.beatToX(0, gridBeat), y: STAFF_RULER_HEIGHT_PX - this.scrollY, sx: this.pixelsPerBeat / BASE_PIXELS_PER_BEAT, sy: 1 };
       // (The margin and the ruler are painted over the rest.)
+      // (Under the margin the stage's own shadow shows: the paper's grain would not, in that shadow.)
       this.paintPaperArea(ctx, G, width, height, frame);
       if (playheadPx > G - 60 && playheadPx < width + 160) backlight(ctx, playheadPx, STAFF_RULER_HEIGHT_PX, height - STAFF_RULER_HEIGHT_PX, frame, PAPER_BACKLIGHT);
     } else {
@@ -1023,16 +1025,16 @@ export class StaffView {
     else {
       ctx.save();
       ctx.beginPath();
-      ctx.rect(G, STAFF_RULER_HEIGHT_PX, width - G, height - STAFF_RULER_HEIGHT_PX);
+      ctx.rect(L, STAFF_RULER_HEIGHT_PX, width - L, height - STAFF_RULER_HEIGHT_PX);
       ctx.clip();
       ctx.translate(0, STAFF_RULER_HEIGHT_PX - this.scrollY);
-      this.paintRange(ctx, layouts, G, width, displayBeat, playheadBeat);
+      this.paintRange(ctx, layouts, L, width, displayBeat, playheadBeat);
       ctx.restore();
     }
     // The tempo marks, over the music (drawTempoMarks), where the pre-painted rows are.
     ctx.save();
     ctx.beginPath();
-    ctx.rect(G, STAFF_RULER_HEIGHT_PX, width - G, height - STAFF_RULER_HEIGHT_PX);
+    ctx.rect(L, STAFF_RULER_HEIGHT_PX, width - L, height - STAFF_RULER_HEIGHT_PX);
     ctx.clip();
     ctx.translate(0, ring ? Math.round((STAFF_RULER_HEIGHT_PX - this.scrollY + this.ringTop) * k) / k - this.ringTop : STAFF_RULER_HEIGHT_PX - this.scrollY);
     this.drawTempoMarks(ctx, gridBeat, gridBeat - (this.playheadX() - G) / this.pixelsPerBeat, gridBeat + (width - this.playheadX()) / this.pixelsPerBeat);
@@ -1051,7 +1053,7 @@ export class StaffView {
       this.showRing(ctx, this.ringRuler!, shift, 0, 0, Math.round(STAFF_RULER_HEIGHT_PX * k), width, null);
     } else {
       const endBeat = displayBeat + (width - this.playheadX()) / this.pixelsPerBeat;
-      this.drawFrom = G;
+      this.drawFrom = L;
       this.drawTo = width;
       this.drawRuler(ctx, displayBeat, startBeat, endBeat);
     }
@@ -1124,13 +1126,13 @@ export class StaffView {
   private ensureRing(width: number, height: number): SliceRing | null {
     const k = this.dpr * this.fill;
     const sd = this.ring.width;
-    const slots = Math.ceil(((width - this.gutterPx) * k) / sd) + 1 + SLICES_AHEAD + SLICES_BEHIND;
+    const slots = Math.ceil(((width - this.musicLeft()) * k) / sd) + 1 + SLICES_AHEAD + SLICES_BEHIND;
     if (slots * sd > MAX_RING_DEVICE_PX || typeof document === 'undefined') return null;
     // Rows: the view's, and a quarter of it above and below (scrolling a little stays in them).
     const view = height - STAFF_RULER_HEIGHT_PX;
     const reach = this.contentHeightPx() > view ? Math.round(view / 4) : 0;
     const rows = view + 2 * reach;
-    const stamp = `${this.laidStamp}|${k}|${slots}|${rows}|${width}|${this.gutterPx}`;
+    const stamp = `${this.laidStamp}|${k}|${slots}|${rows}|${width}|${this.musicLeft()}`;
     if (stamp !== this.ringStamp || !this.ringMusic || !this.ringRuler) {
       this.ringStamp = stamp;
       this.ringMusic ??= document.createElement('canvas');
@@ -1209,7 +1211,7 @@ export class StaffView {
    */
   private showMusic(ctx: CanvasRenderingContext2D, layouts: PartLayout[], shift: number, gridBeat: number, playheadBeat: number, width: number, height: number) {
     const k = this.dpr * this.fill;
-    const left = Math.round(this.gutterPx * k);
+    const left = Math.round(this.musicLeft() * k);
     const right = Math.round(width * k);
     const [first, last] = this.ring.span(left - shift, right - shift);
     let painted = 0;
@@ -1257,7 +1259,7 @@ export class StaffView {
   private showRing(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, shift: number, srcTop: number, top: number, bottom: number, width: number, gap: [number, number] | null) {
     const k = this.dpr * this.fill;
     const sd = this.ring.width;
-    const left = Math.round(this.gutterPx * k);
+    const left = Math.round(this.musicLeft() * k);
     const right = Math.round(width * k);
     const rows = Math.min(bottom - top, canvas.height - srcTop);
     if (rows <= 0 || srcTop < 0) return;
@@ -1406,6 +1408,14 @@ export class StaffView {
     ctx.restore();
   }
 
+  /**
+   * Where the music and the ruler begin on screen. On paper they run on under the margin and the
+   * voices (into the box's shadow, D53) instead of stopping at it; otherwise at the margin.
+   */
+  private musicLeft(): number {
+    return this.theme.material.surface === 'paper' ? 0 : this.gutterPx;
+  }
+
   /** Where the box's shadow over the left of the stage has fully lifted (paper): just before the line. */
   private marginFadeEnd(): number {
     return this.theme.material.surface === 'paper' ? Math.max(this.gutterPx + 28, this.playheadX() - 6) : this.gutterPx + 28;
@@ -1417,8 +1427,8 @@ export class StaffView {
     const G = this.gutterPx;
     const ground = this.theme.color(this.theme.material.surface === 'paper' ? 'page-background' : 'canvas-surface');
     // The pinned margin is a strip of its own: its paper stays put.
-    if ((this.theme.material.surface === 'paper')) paintPaper(ctx, 0, STAFF_RULER_HEIGHT_PX, G, height - STAFF_RULER_HEIGHT_PX, STILL, 'surface', NIGHT_PAPER);
-    else {
+    // (On paper the music's own paper runs under it, D53.)
+    if (this.theme.material.surface !== 'paper') {
       ctx.fillStyle = ground.css;
       ctx.fillRect(0, STAFF_RULER_HEIGHT_PX, G, height - STAFF_RULER_HEIGHT_PX);
     }
@@ -1428,23 +1438,14 @@ export class StaffView {
     // names lie on top (drawn after it).
     const shadowed = this.theme.material.surface === 'paper';
     if (shadowed) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, STAFF_RULER_HEIGHT_PX, this.cssWidth, height - STAFF_RULER_HEIGHT_PX);
-      ctx.clip();
-      ctx.translate(0, STAFF_RULER_HEIGHT_PX - this.scrollY);
-      ctx.fillStyle = paper(0.22);
-      for (const layout of layouts) for (let i = 0; i < 5; i++) ctx.fillRect(0, Math.round(layout.topY + i * SP), G, 1);
-      ctx.restore();
       const end = this.marginFadeEnd();
       // The stage's shadow, as the stage behind the canvas shows it.
       const shade = this.theme.color('print-stage-shadow');
-      const fall = ctx.createLinearGradient(G, 0, end, 0);
-      for (let i = 0; i <= 8; i++) fall.addColorStop(i / 8, shade.rgba(Number((0.96 * (1 - (i / 8) ** 1.6)).toFixed(3))));
-      ctx.fillStyle = shade.rgba(0.96);
-      ctx.fillRect(0, STAFF_RULER_HEIGHT_PX, G, height - STAFF_RULER_HEIGHT_PX);
+      // Never quite dark: the staves and notes stay faintly there until they pass under the voices.
+      const fall = ctx.createLinearGradient(0, 0, end, 0);
+      for (let i = 0; i <= 10; i++) fall.addColorStop(i / 10, shade.rgba(Number((0.78 * (1 - (i / 10) ** 1.4)).toFixed(3))));
       ctx.fillStyle = fall;
-      ctx.fillRect(G, STAFF_RULER_HEIGHT_PX, end - G, height - STAFF_RULER_HEIGHT_PX);
+      ctx.fillRect(0, STAFF_RULER_HEIGHT_PX, end, height - STAFF_RULER_HEIGHT_PX);
     } else {
       const fade = ctx.createLinearGradient(G, 0, G + 28, 0);
       fade.addColorStop(0, ground.rgba(1));
@@ -1524,7 +1525,7 @@ export class StaffView {
     this.drawRulerGround(ctx);
     ctx.save();
     ctx.beginPath();
-    ctx.rect(G, 0, this.cssWidth - G, STAFF_RULER_HEIGHT_PX);
+    ctx.rect(this.musicLeft(), 0, this.cssWidth - this.musicLeft(), STAFF_RULER_HEIGHT_PX);
     ctx.clip();
     this.drawRulerLabels(ctx, displayBeat, startBeat, endBeat);
     ctx.restore();
