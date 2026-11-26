@@ -835,7 +835,9 @@ export class PianoRoll {
     const playheadXPos = this.snapToDevicePx(beatToX(playheadBeat));
     // Played music steps back (one rect over it -- with the lantern a soft edge instead, which
     // leaves the lamp's glow whole); the notes sounding right now light up.
-    if (playheadXPos > 0) {
+    // (On paper the stage's box does it instead: the music fades continuously into its shadow toward
+    // the left -- stage.css.)
+    if (playheadXPos > 0 && this.theme.material.surface !== 'paper') {
       const end = Math.min(width, playheadXPos);
       // The shade is even up to the fade, which only spans the last PAST_FADE_PX: a flat fill there
       // and the gradient over just that strip -- a gradient across the whole played area costs

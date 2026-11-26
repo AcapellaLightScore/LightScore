@@ -335,7 +335,7 @@ function deckleSides(seed: number, fill: string): Record<'top' | 'bottom' | 'lef
 
 // ---- the live CSS inputs ------------------------------------------------------------------------
 
-const LIVE = ['wear-display', 'wear-fine', 'voids', 'crinkle', 'float-menu', 'float-card', 'float-dialog', ...['card', 'under'].flatMap((s) => ['top', 'bottom', 'left', 'right'].map((side) => `deckle-${s}-${side}`))];
+const LIVE = ['wear-display', 'wear-fine', 'voids', 'crinkle', ...['card', 'under'].flatMap((s) => ['top', 'bottom', 'left', 'right'].map((side) => `deckle-${s}-${side}`))];
 let appliedKey = '';
 
 /** A tile of the wear at `strength` (of its alpha), as a CSS url(). */
@@ -366,79 +366,6 @@ function keepUrl(theme: ThemeSnapshot, strength: number) {
   ctx.globalAlpha = strength;
   ctx.drawImage(wear(theme), 0, 0);
   return `url(${c.toDataURL('image/png')})`;
-}
-
-// ---- floating sheets: menus, dialogs, the zoom control ---------------------------------------------
-// A sheet held above the page is seen by the same lamp, printed the same way: its shadow on the paper
-// is stippled, not blurred (the grain of a riso print), and its own edge is grained -- darker on the
-// sides away from the lamp, a fine lit rim toward it. One 9-slice image per corner radius, used as
-// the sheet's border-image (outside its box, and a band just inside it); nothing per frame.
-
-const FLOAT_OUT = 22; // CSS px the shadow reaches beyond the sheet
-const FLOAT_IN = 10; // CSS px of the sheet's own edge
-const FLOAT_MID = 48; // CSS px of edge that repeats along each side
-const FLOAT_K = 2; // image px per CSS px
-export const FLOAT_SLICE = (FLOAT_OUT + FLOAT_IN) * FLOAT_K;
-
-function floatEdge(theme: ThemeSnapshot, radius: number, seed: number): string {
-  const k = FLOAT_K;
-  const S = FLOAT_SLICE;
-  const N = 2 * S + FLOAT_MID * k;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = N;
-  const ctx = canvas.getContext('2d')!;
-  const img = ctx.createImageData(N, N);
-  const random = seeded(seed);
-  const shadowStrength = role(theme, 'print-float-shadow');
-  const grain = role(theme, 'print-float-grain');
-  const dark = theme.color('score-row-shadow');
-  const light = theme.color('material-light-warm');
-  const o = FLOAT_OUT * k;
-  const r = radius * k;
-  // Signed distance to the sheet (a rounded rectangle filling the image but for the outset ring).
-  const sheet = (x: number, y: number, dx = 0, dy = 0) => {
-    const half = N / 2 - o;
-    const qx = Math.abs(x - dx - N / 2) - (half - r);
-    const qy = Math.abs(y - dy - N / 2) - (half - r);
-    return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r;
-  };
-  const put = (i: number, c: { r: number; g: number; b: number }, a: number) => {
-    img.data[i] = c.r;
-    img.data[i + 1] = c.g;
-    img.data[i + 2] = c.b;
-    img.data[i + 3] = Math.max(img.data[i + 3], Math.min(255, a * 255));
-  };
-  for (let y = 0; y < N; y++) {
-    for (let x = 0; x < N; x++) {
-      const i = (y * N + x) * 4;
-      const d = sheet(x + 0.5, y + 0.5);
-      if (d > 0) {
-        // The shadow, cast down and to the right, dithered: each grain dark or not, by its chance.
-        const ds = Math.max(0, sheet(x + 0.5, y + 0.5, 2.5 * k, 6 * k));
-        const p = shadowStrength * (0.15 + 0.85 * Math.exp(-((ds / (9 * k)) ** 2))) * (1 - Math.min(1, d / o) ** 2) * (ds < 1 ? 1 : 0.9);
-        if (random() < p) put(i, dark, 0.55 + random() * 0.4);
-      } else {
-        const depth = -d / k; // CSS px inside the edge
-        if (depth > FLOAT_IN) continue;
-        // Which way this bit of edge faces (the outward normal of the nearest edge, so every repeat of
-        // a side is the same): toward the lamp (upper left) or away from it.
-        const gx = sheet(x + 1.5, y + 0.5) - sheet(x - 0.5, y + 0.5);
-        const gy = sheet(x + 0.5, y + 1.5) - sheet(x + 0.5, y - 0.5);
-        const gl = Math.hypot(gx, gy) || 1;
-        const facing = (gx / gl) * 0.6 + (gy / gl) * 0.8; // +1: away from the lamp, -1: toward it
-        const away = Math.max(0, facing);
-        const toward = Math.max(0, -facing);
-        const fall = 1 - depth / FLOAT_IN;
-        if (random() < grain * away * fall * fall * 0.9) put(i, dark, 0.45 + random() * 0.45);
-        else if (random() < grain * toward * fall ** 3 * 0.5) put(i, light, 0.18 + random() * 0.22);
-        // The lit rim: a hair along the edge facing the lamp.
-        if (depth < 1.5 && toward > 0.1) put(i, light, 0.18 + 0.35 * toward);
-        else if (depth < 1.5 && away > 0.2) put(i, dark, 0.35 + 0.4 * away);
-      }
-    }
-  }
-  ctx.putImageData(img, 0, 0);
-  return `url(${canvas.toDataURL()})`;
 }
 
 // ---- gold pressed into the card (debossed foil) ----------------------------------------------------
@@ -485,7 +412,7 @@ function deboss(theme: ThemeSnapshot) {
 function applyCss(theme: ThemeSnapshot) {
   const root = document.documentElement.style;
   const strengths = ['print-type-wear', 'print-type-wear-fine', 'print-solid-voids', 'print-foil-crinkle'].map((r) => role(theme, r));
-  const extra = ['print-tooth', 'print-float-shadow', 'print-float-grain', 'print-gold-deboss'].map((r) => role(theme, r));
+  const extra = ['print-tooth', 'print-gold-deboss'].map((r) => role(theme, r));
   const key = JSON.stringify([theme.material.surface, strengths, extra, theme.color('canvas-mask').css, theme.color('page-background').css, theme.color('score-row-shadow').css, theme.color('material-light-warm').css]);
   if (key === appliedKey) return;
   appliedKey = key;
@@ -494,7 +421,6 @@ function applyCss(theme: ThemeSnapshot) {
     return;
   }
   const [display, fine, voids, crinkle] = strengths;
-  for (const [name, radius, seed] of [['menu', 8, 3109], ['card', 12, 3203], ['dialog', 18, 3301]] as const) root.setProperty(`--ds-print-float-${name}-live`, floatEdge(theme, radius, seed));
   deboss(theme);
   root.setProperty('--ds-print-wear-display-live', keepUrl(theme, display));
   root.setProperty('--ds-print-wear-fine-live', keepUrl(theme, fine));

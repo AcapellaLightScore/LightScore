@@ -66,7 +66,6 @@ const RANGE_SLACK_PX = 8;
 const LYRIC_REACH_PX = 80;
 // How far a sounding note's lit parts reach from its head (accidental, dot, flag, a second's head).
 const LIT_HEAD_REACH_PX = 24;
-const PAST_FADE_PX = 72; // on paper the shade fades in over this width left of the playhead
 // A syllable's half width, at most (12 px type: no letter wider than its size).
 const lyricReach = (lyric: string) => lyric.length * 6 + 4;
 
@@ -689,8 +688,6 @@ export class StaffView {
   private marginStamp = '';
   private paperCache: HTMLCanvasElement | null = null;
   private paperStamp = '';
-  private pastFade: CanvasGradient | null = null;
-  private pastFadeStamp = '';
   private stats = { slices: 0, sync: 0, ahead: 0, litPx: 0, laidMs: 0 };
 
   constructor(canvas: HTMLCanvasElement, score: Score, partColor: (partId: string) => string) {
@@ -1028,28 +1025,11 @@ export class StaffView {
     this.drawTempoMarks(ctx, gridBeat, gridBeat - (this.playheadX() - G) / this.pixelsPerBeat, gridBeat + (width - this.playheadX()) / this.pixelsPerBeat);
     ctx.restore();
 
-    // Played music steps back, as in the piano roll.
-    if (playheadPx > G) {
-      const end = Math.min(width, playheadPx);
-      if ((this.theme.material.surface === 'paper')) {
-        // A soft edge, as on the punched roll, so the lamp's strip isn't cut in half. The shade is
-        // even up to the fade (the gradient pads there): a flat fill, and the gradient over just
-        // the last PAST_FADE_PX -- split on a whole device pixel, so the two fills meet cleanly.
-        const fadeAt = playheadPx - PAST_FADE_PX;
-        const flatTo = Math.min(end, Math.max(G, Math.round(fadeAt * k) / k));
-        ctx.fillStyle = this.pastShade;
-        if (flatTo > G) ctx.fillRect(G, STAFF_RULER_HEIGHT_PX, flatTo - G, height - STAFF_RULER_HEIGHT_PX);
-        if (end > flatTo) {
-          ctx.save();
-          ctx.translate(fadeAt, 0);
-          ctx.fillStyle = this.pastFadeOf(ctx);
-          ctx.fillRect(flatTo - fadeAt, STAFF_RULER_HEIGHT_PX, end - flatTo, height - STAFF_RULER_HEIGHT_PX);
-          ctx.restore();
-        }
-      } else {
-        ctx.fillStyle = this.pastShade;
-        ctx.fillRect(G, STAFF_RULER_HEIGHT_PX, end - G, height - STAFF_RULER_HEIGHT_PX);
-      }
+    // Played music steps back, as in the piano roll. (On paper the stage's box does it instead: the
+    // music fades continuously into its shadow toward the left -- stage.css.)
+    if (playheadPx > G && this.theme.material.surface !== 'paper') {
+      ctx.fillStyle = this.pastShade;
+      ctx.fillRect(G, STAFF_RULER_HEIGHT_PX, Math.min(width, playheadPx) - G, height - STAFF_RULER_HEIGHT_PX);
     }
 
     this.showMargin(ctx, layouts, startBeat, height);
@@ -1368,19 +1348,6 @@ export class StaffView {
   private partLabel(partId: string): string {
     const part = this.score.parts.find((p) => p.id === partId);
     return part?.name ?? '';
-  }
-
-  /** The played shade's fade (paper): over [0, PAST_FADE_PX], drawn translated to where it ends. */
-  private pastFadeOf(ctx: CanvasRenderingContext2D): CanvasGradient {
-    const stamp = `${this.theme.revision}|${this.pastShade}`;
-    if (!this.pastFade || stamp !== this.pastFadeStamp) {
-      this.pastFadeStamp = stamp;
-      const fade = ctx.createLinearGradient(0, 0, PAST_FADE_PX, 0);
-      fade.addColorStop(0, this.pastShade);
-      fade.addColorStop(1, this.theme.color('score-past').rgba(0));
-      this.pastFade = fade;
-    }
-    return this.pastFade;
   }
 
   /**

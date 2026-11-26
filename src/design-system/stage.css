@@ -24,6 +24,16 @@
     will-change: transform;
     transform: var(--ds-roll-staff-transform)
 }
+/* On paper the roll and the sheet lie recessed in a box: the canvases fade into the stage's shadow
+   at the left (under the voices) and come into the light toward the right. A static mask on the
+   canvases' own compositor layers -- nothing per frame. */
+@container style(--ds-material-family: paper) {
+    #roll,
+    #staff {
+        mask-image: var(--ds-print-stage-vignette);
+        mask-composite: intersect
+    }
+}
 /* The piano roll advertises its drag affordance before gesture handling starts. */
 #roll {
     cursor: grab
