@@ -1007,8 +1007,8 @@ export class StaffView {
       // shows its inside.
       const frame = { x: this.beatToX(0, gridBeat), y: STAFF_RULER_HEIGHT_PX - this.scrollY, sx: this.pixelsPerBeat / BASE_PIXELS_PER_BEAT, sy: 1 };
       // (The margin and the ruler are painted over the rest.)
-      // (Under the margin the stage's own shadow shows: the paper's grain would not, in that shadow.)
-      this.paintPaperArea(ctx, G, width, height, frame);
+      // (The paper runs on under the margin too: one sheet, sliding under the voices.)
+      this.paintPaperArea(ctx, L, width, height, frame);
       if (playheadPx > G - 60 && playheadPx < width + 160) backlight(ctx, playheadPx, STAFF_RULER_HEIGHT_PX, height - STAFF_RULER_HEIGHT_PX, frame, PAPER_BACKLIGHT);
     } else {
       ctx.fillStyle = stageFill(ctx, height);
