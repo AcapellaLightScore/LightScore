@@ -2,6 +2,7 @@ import { dialogPresentationRecipe, type DialogOptions } from "./overlays";
 import { emptyStateRecipe } from "./display";
 import { normalizeRecipe } from "./normalize";
 import { accountStyles } from "./account";
+import { printStyles } from "./print";
 /** D02/D08/D12/D13: library controls, cards and overlays share named semantic slots. */
 const libraryStyles = {
   button: "tw:[:where(&)]:font-inherit tw:[:where(&)]:font-family-inherit tw:[:where(&)]:text-inherit tw:[:where(&)]:surface-material-clear tw:[:where(&)]:border-0 tw:[:where(&)]:p-flush tw:[:where(&)]:cursor-pointer tw:[&:disabled]:cursor-default tw:[&:disabled]:opacity-opacity-disabled tw:[&:focus-visible]:[outline:var(--ds-library-button-outline)] tw:[&:focus-visible]:outline-offset-(--ds-space-micro)",
@@ -45,9 +46,9 @@ const parts = {
   "song-grid": "ds-library-song-grid song-grid" + " " + libraryStyles.songGrid,
   "cover": "ds-library-cover cover" + " " + libraryStyles.cover,
   "song-body": "ds-library-song-body song-body" + " " + libraryStyles.songBody,
-  "song-title": "ds-library-song-title song-title" + " " + libraryStyles.songTitle,
-  "song-meta": "ds-library-song-meta song-meta" + " " + libraryStyles.songMeta,
-  "vdots": "ds-library-vdots vdots" + " " + libraryStyles.vdots,
+  "song-title": "ds-library-song-title song-title" + " " + libraryStyles.songTitle + " " + printStyles.display,
+  "song-meta": "ds-library-song-meta song-meta" + " " + libraryStyles.songMeta + " " + printStyles.fine,
+  "vdots": "ds-library-vdots vdots" + " " + libraryStyles.vdots + " " + printStyles.dabs,
   "banner": "ds-library-banner banner" + " " + libraryStyles.banner,
   "paper-list": "ds-library-paper-list paper-list" + " " + libraryStyles.paperList,
   "paper-swatch": "ds-library-paper-swatch paper-swatch" + " " + libraryStyles.paperSwatch,
@@ -70,11 +71,11 @@ const controls = {
 } as const;
 export type LibraryControl = keyof typeof controls;
 export function libraryControlRecipe(variant: LibraryControl) { return controls[variant]; }
-export function libraryCardRecipe() { return "ds-library-song-card song-card" + " " + libraryStyles.songCard + " " + accountStyles.songCard; }
+export function libraryCardRecipe() { return "ds-library-song-card song-card" + " " + libraryStyles.songCard + " " + accountStyles.songCard + " " + printStyles.card; }
 export function libraryMoreRecipe() { return "ds-library-button ds-library-song-more song-more" + " " + libraryStyles.button + " " + libraryStyles.songMore + " tw:inline-grid tw:place-items-center tw:flex-none tw:size-toolbar tw:touch:min-w-control-target-touch tw:touch:min-h-control-target-touch tw:rounded-icon"; }
 export function libraryBadgeRecipe(variant:"tag"|"prepared") { return variant==="tag" ? "ds-library-tag tag" + " " + libraryStyles.tag : "ds-offline-mark offline-mark" + " " + accountStyles.offlineMark; }
 export function offlineUpdateRecipe() { return "ds-library-offline-update" + " " + libraryStyles.offlineUpdate; }
-export function librarySearchRecipe() { return {root:"ds-library-search" + " " + libraryStyles.search,label:"tw:sr-only",control:"ds-library-search-input" + " " + libraryStyles.searchInput + " tw:rounded-field",hint:"tw:sr-only",error:"tw:sr-only"}; }
+export function librarySearchRecipe() { return {root:"ds-library-search" + " " + libraryStyles.search + " " + printStyles.field,label:"tw:sr-only",control:"ds-library-search-input" + " " + libraryStyles.searchInput + " tw:rounded-field",hint:"tw:sr-only",error:"tw:sr-only"}; }
 export function libraryMenuRecipe() { return {option:"ds-library-menu-option " + libraryStyles.menuOption,value:"ds-library-menu-value " + libraryStyles.menuValue,chevron:"ds-library-menu-chevron",sub:"ds-library-menu-sub " + libraryStyles.menuSub,root:"ds-library-menu" + " " + libraryStyles.menu,item:"ds-library-menu-item ds-menu-item" + " " + libraryStyles.menuItem,danger:"ds-library-menu-danger" + " " + libraryStyles.menuDanger,check:"ds-library-menu-check" + " " + libraryStyles.menuCheck}; }
 /** D12 forms/panels stay centered; D48 small menus can use anchored geometry. */
 export function libraryDialogRecipe(variant:"library-prompt"|"library-sheet"|"library-popover", destructive = false, presentation: DialogOptions["presentation"] = "centered") {

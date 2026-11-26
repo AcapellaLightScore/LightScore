@@ -290,6 +290,56 @@ function path(ctx: CanvasRenderingContext2D, pts: [number, number][]) {
   ctx.lineTo(last[0], last[1]);
 }
 
+/**
+ * Under a lamp, paper is not flat: its tooth and the fibres lying on it are a landscape a few
+ * hundredths of a millimetre high -- each slope facing the lamp (upper left) a touch lighter, each
+ * facing away a touch darker; in laid paper the lines of the mould are ridges too. Fine on
+ * purpose: tooth and fibres only, never the larger clouds (lit, those read as crumpled leather).
+ */
+function relief(sctx: CanvasRenderingContext2D, fibres: Fibre[], tooth: Float32Array, laid: Float32Array, lightMax: number, darkMax: number) {
+  if (!(lightMax > 0) && !(darkMax > 0)) return;
+  // The fibres' height: drawn as strokes and read back (a fibre is round: highest along its middle).
+  const c = document.createElement('canvas');
+  c.width = c.height = N;
+  const fc = c.getContext('2d', { willReadFrequently: true })!;
+  fc.lineCap = 'round';
+  fc.strokeStyle = readTheme().color('canvas-mask').css;
+  for (const fib of fibres) {
+    wrapped(fc, fib.pts, () => {
+      path(fc, fib.pts);
+      fc.globalAlpha = Math.min(1, 0.45 + 0.3 * Math.abs(fib.shade));
+      fc.lineWidth = fib.width * 1.2;
+      fc.stroke();
+    });
+  }
+  const fa = fc.getImageData(0, 0, N, N).data;
+  const at = (x: number, y: number) => ((y + N) % N) * N + ((x + N) % N);
+  const raw = new Float32Array(N * N);
+  for (let i = 0; i < raw.length; i++) raw[i] = tooth[i] * 0.55 + laid[i] * 0.06 + (fa[i * 4 + 3] / 255) * 0.35;
+  // Softened a little (a 3x3 average), so the slopes are gentle and nothing glitters.
+  const h = new Float32Array(N * N);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      let sum = 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) sum += raw[at(x + dx, y + dy)];
+      h[y * N + x] = sum / 9;
+    }
+  }
+  // The slope toward the lamp, normalized to its spread.
+  const shade = new Float32Array(N * N);
+  let sq = 0;
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const v = h[at(x - 1, y - 1)] - h[at(x + 1, y + 1)];
+      shade[y * N + x] = v;
+      sq += v * v;
+    }
+  }
+  const norm = 1 / (2.2 * Math.sqrt(sq / shade.length) || 1);
+  for (let i = 0; i < shade.length; i++) shade[i] *= norm;
+  sctx.drawImage(fieldTile(shade, channels('material-paper-fibre-light'), lightMax, darkMax), 0, 0);
+}
+
 function make(k: PaperKind) {
   const theme = readTheme();
   const SURFACE_LIGHT = Number(theme.roles['material-paper-surface-light']);
@@ -338,7 +388,8 @@ function make(k: PaperKind) {
   const sctx = surface.getContext('2d')!;
   const lctx = light.getContext('2d')!;
   sctx.lineCap = lctx.lineCap = 'round';
-  for (const f of r.fibres(rnd)) {
+  const fibres = r.fibres(rnd);
+  for (const f of fibres) {
     wrapped(sctx, f.pts, () => {
       path(sctx, f.pts);
       sctx.lineWidth = f.width;
@@ -355,6 +406,8 @@ function make(k: PaperKind) {
       lctx.globalCompositeOperation = 'source-over';
     });
   }
+  // Seen by a lamp, the paper is a relief (print and paper): drawn before the flecks, which lie on it.
+  relief(sctx, fibres, tooth, laid, Number(theme.roles['material-paper-relief-light']), Number(theme.roles['material-paper-relief-dark']));
   // Flecks: specks of something else caught in the pulp.
   for (let i = 0; i < r.flecks; i++) {
     const pts: [number, number][] = [[rnd() * N, rnd() * N]];
@@ -617,7 +670,7 @@ function scheduleTexture(theme: ThemeSnapshot) {
 subscribeTheme(theme => {
   NIGHT_PAPER = theme.color('material-paper-ground').css;
   const key = JSON.stringify([theme.material, (['material-paper-fibre-ink', 'material-paper-fibre-light', 'material-paper-lamp', 'material-paper-strand-shadow', 'material-paper-strand-light', 'material-paper-warm-fleck', 'canvas-mask'] as const).map(role => theme.color(role).css),
-    ['material-paper-surface-light', 'material-paper-surface-dark', 'material-paper-light-bright', 'material-paper-light-base'].map(role => theme.roles[role])]);
+    ['material-paper-surface-light', 'material-paper-surface-dark', 'material-paper-light-bright', 'material-paper-light-base', 'material-paper-relief-light', 'material-paper-relief-dark'].map(role => theme.roles[role])]);
   if (materialKey === key) {
     if (deferredTexture) scheduleTexture(theme);
     return;

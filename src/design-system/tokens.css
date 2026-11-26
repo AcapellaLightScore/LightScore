@@ -546,13 +546,14 @@
   --ds-range-thumb-shadow: var(--ds-volume-thumb-shadow);
   --ds-material-stage-background: var(--ds-material-fibre), #1b1621;
   --ds-material-domain-gold-color: var(--ds-accent);
-  --ds-wordmark-surface: linear-gradient(180deg, var(--ds-gold-ink-deep) 5%, var(--ds-gold-ink-light) 50%, var(--ds-gold-ink-deep) 95%);
+  /* Gold catches the lamp: a band of light (moved by printMaterial.ts) over finely crinkled foil. */
+  --ds-wordmark-surface: var(--ds-print-foil-band) 62% 0 / 300% 100% no-repeat, var(--ds-print-crinkle) 0 0 / var(--ds-print-crinkle-size), linear-gradient(180deg, var(--ds-gold-ink-deep) 5%, var(--ds-gold-ink-light) 50%, var(--ds-gold-ink-deep) 95%);
   --ds-wordmark-vendor-clip: text;
   --ds-wordmark-clip: text;
   --ds-material-title-l-color: #fff6e6;
   --ds-material-title-l-text-shadow: 0 0 var(--ds-tracking-label) rgb(255 200 130 / 0.7),
     0 0 0.35em rgb(255 190 120 / 0.35);
-  --ds-material-ded-name-background: linear-gradient(180deg, var(--ds-gold-ink-deep) 8%, var(--ds-gold-ink) 52%, var(--ds-gold-ink-deep) 96%);
+  --ds-material-ded-name-background: var(--ds-print-foil-band) 62% 0 / 300% 100% no-repeat, var(--ds-print-crinkle) 0 0 / var(--ds-print-crinkle-size), linear-gradient(180deg, var(--ds-gold-ink-deep) 8%, var(--ds-gold-ink) 52%, var(--ds-gold-ink-deep) 96%);
   --ds-material-ded-name-vendor-background-clip: text;
   --ds-material-ded-name-background-clip: text;
   --ds-material-ded-name-filter: drop-shadow(0 var(--ds-space-hairline) 0 rgb(255 236 200 / 0.08)) drop-shadow(0 calc(-1 * var(--ds-space-hairline)) var(--ds-space-hairline) rgb(0 0 0 / 0.5));
@@ -568,7 +569,7 @@
   --ds-material-intro-dots-i-background: rgb(21 17 26 / 0.18);
   --ds-material-intro-dots-i-on-background: #a9823c;
   --ds-waves-display: none;
-  --ds-ground-texture: var(--ds-material-fibre);
+  --ds-ground-texture: var(--ds-print-lamp), var(--ds-material-fibre);
   --ds-landing-texture-display: block;
   /* Complete themed materials, effects and renderer paints. Equal existing values preserve parity. */
   --ds-material-paper-swatch-glow: var(--pigment-material-paper-swatch-glow);
@@ -874,6 +875,62 @@
   --ds-voice-7: var(--pigment-voice-7);
   --ds-material-gold-leaf: linear-gradient(180deg, var(--ds-gold-ink-light), var(--ds-gold-ink) 55%, var(--ds-gold-ink-deep));
   --ds-material-velvet-noise: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 .92  0 0 0 0 1  0 0 0 .05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  /* Print and paper (printMaterial.ts; paper.ts relief): dark card printed in opaque ink, seen by
+     one warm lamp from the upper left. Strengths are fractions; shadows put the paper's bend
+     around an impression away from the lamp above a stroke, toward it below. */
+  --ds-material-paper-relief-light: .045;
+  --ds-material-paper-relief-dark: .06;
+  --ds-print-type-wear: .55;
+  --ds-print-type-wear-fine: .32;
+  --ds-print-solid-voids: .4;
+  --ds-print-foil-crinkle: .5;
+  --ds-print-music-wear: 1;
+  --ds-print-gouache-wear: .85;
+  --ds-print-gouache-rim: .26;
+  --ds-print-gouache-shade: .3;
+  --ds-print-gouache-shadow: .6;
+  --ds-print-type-shadow: 0 0 0.5px currentColor, 0 -0.7px 0.4px rgb(3 2 6 / 0.75), 0 0.9px 0.2px rgb(255 240 220 / 0.07);
+  --ds-print-type-shadow-fine: 0 0 0.3px currentColor, 0 -0.5px 0.3px rgb(3 2 6 / 0.6), 0 0.6px 0 rgb(255 240 220 / 0.05);
+  --ds-print-icon-filter: drop-shadow(0 -0.5px 0.3px rgb(3 2 6 / 0.6)) drop-shadow(0 0.6px 0 rgb(255 240 220 / 0.05));
+  --ds-print-card-filter: drop-shadow(-0.6px -0.7px 0.45px rgb(255 236 212 / 0.16)) drop-shadow(0 var(--ds-space-hairline) 0.6px rgb(3 2 6 / 0.7)) drop-shadow(0 var(--ds-space-control) var(--ds-space-row) rgb(3 2 6 / 0.45));
+  --ds-print-card-lifted-filter: drop-shadow(-0.6px -0.7px 0.45px rgb(255 236 212 / 0.2)) drop-shadow(0 var(--ds-space-micro) var(--ds-space-hairline) rgb(3 2 6 / 0.6)) drop-shadow(0 var(--ds-space-section) var(--ds-space-section) rgb(3 2 6 / 0.5));
+  --ds-print-under-surface: var(--ds-material-fibre), linear-gradient(180deg, #17121c, #130f17);
+  --ds-print-lamp: radial-gradient(130% 80% at 12% -18%, rgb(255 212 160 / 0.085), rgb(255 212 160 / 0.025) 45%, transparent 72%), radial-gradient(90% 70% at 100% 118%, rgb(0 0 0 / 0.32), transparent 70%);
+  --ds-print-foil-band: linear-gradient(105deg, rgb(255 238 196 / 0) 40%, rgb(255 246 218 / 0.9) 50%, rgb(255 238 196 / 0) 60%);
+  /* D51 print: a solid of opaque ink lies in a bed pressed into the card; pressed, it sinks deeper. */
+  --ds-print-solid-bed: inset 0 calc(var(--ds-space-hairline) * 1.5) calc(var(--ds-space-hairline) * 1.5) -0.5px rgb(3 2 6 / 0.55), inset 0 calc(-1 * var(--ds-space-hairline)) 0 rgb(255 252 244 / 0.35), 0 calc(-1 * var(--ds-space-hairline)) 0 rgb(3 2 6 / 0.5), 0 var(--ds-space-hairline) 0 rgb(255 240 220 / 0.08);
+  --ds-print-solid-pressed: inset 0 var(--ds-space-micro) var(--ds-space-compact) rgb(3 2 6 / 0.55), inset 0 calc(-1 * var(--ds-space-hairline)) 0 rgb(255 252 244 / 0.2), 0 var(--ds-space-hairline) 0 rgb(255 240 220 / 0.06);
+  /* A field is a hollow in the card: its upper wall in shade, its lower lip catching the lamp. */
+  --ds-print-field-surface: var(--ds-material-fibre), rgb(10 7 13 / 0.5);
+  --ds-print-field-edge: transparent;
+  --ds-print-field-focus-edge: transparent;
+  --ds-print-field-filter: none;
+  --ds-print-field-bed: inset 0 calc(var(--ds-space-hairline) * 1.5) 2.5px rgb(3 2 6 / 0.65), inset 0 calc(-1 * var(--ds-space-hairline)) 0 rgb(255 240 220 / 0.04), 0 var(--ds-space-hairline) 0 rgb(255 240 220 / 0.07), 0 calc(-1 * var(--ds-space-hairline)) 0 rgb(3 2 6 / 0.35);
+  --ds-print-field-focus: inset 0 calc(var(--ds-space-hairline) * 1.5) 2.5px rgb(3 2 6 / 0.65), inset 0 0 0 var(--ds-space-hairline) rgb(255 226 190 / 0.16), 0 var(--ds-space-hairline) 0 rgb(255 240 220 / 0.09), 0 calc(-1 * var(--ds-space-hairline)) 0 rgb(3 2 6 / 0.35);
+  /* The card's "…": a small tab of the card's own paper, embossed. */
+  --ds-print-tab-surface: var(--ds-material-fibre), linear-gradient(180deg, rgb(43 36 50 / 0.94), rgb(34 28 41 / 0.94));
+  --ds-print-tab-shadow: -0.5px -0.5px 0 rgb(255 244 228 / 0.08), 0.5px calc(var(--ds-space-hairline) * 1.5) var(--ds-space-tight) rgb(3 2 6 / 0.6), inset 0.5px 0.5px 0 rgb(255 244 228 / 0.1);
+  /* The voices' colours as gouache: lit toward the lamp, a body that casts a small shadow. */
+  --ds-print-dab-light: #fff6e8;
+  --ds-print-dab-dark: #0a070d;
+  --ds-print-dab-mix: 86%;
+  --ds-print-dab-shadow: 0.4px 0.7px 0.5px rgb(3 2 6 / 0.6), inset -0.4px -0.5px 0.4px rgb(3 2 6 / 0.25);
+  --ds-print-dab-shape-a: 52% 46% 50% 48% / 47% 53% 46% 54%;
+  --ds-print-dab-shape-b: 46% 54% 47% 52% / 53% 46% 54% 47%;
+  --ds-print-dab-shape-c: 50% 47% 54% 46% / 50% 54% 47% 50%;
+  /* Mute and solo are small tabs embossed out of the card; muted, a solid of ink in its bed. */
+  --ds-print-mix-surface: var(--ds-material-fibre), linear-gradient(180deg, #2a2331, #231d29);
+  --ds-print-mix-edge: transparent;
+  --ds-print-mix-hover-edge: transparent;
+  --ds-print-mix-shadow: var(--ds-shadow-emboss-raised);
+  --ds-print-mute-on-surface: var(--ds-print-voids) 0 0 / var(--ds-print-voids-size), linear-gradient(180deg, #e9dfcc, #e2d6c1);
+  --ds-print-mute-on-edge: transparent;
+  --ds-print-mute-on-shadow: inset 0 calc(var(--ds-space-hairline) * 1.5) var(--ds-space-micro) rgb(3 2 6 / 0.6), 0 var(--ds-space-hairline) 0 rgb(255 240 220 / 0.07);
+  /* The slider: a groove cut into the card, a disc of ivory board in it. */
+  --ds-print-groove-surface: rgb(6 4 9 / 0.7);
+  --ds-print-groove-shadow: inset 0 var(--ds-space-hairline) calc(var(--ds-space-hairline) * 1.5) rgb(0 0 0 / 0.8), 0 var(--ds-space-hairline) 0 rgb(255 240 220 / 0.07);
+  --ds-print-disc-surface: radial-gradient(circle at 36% 30%, #fbf3e6 0, #e9dfcb 55%, #cdbfa6 100%);
+  --ds-print-disc-shadow: inset 0 calc(-1 * var(--ds-space-hairline)) var(--ds-space-hairline) rgb(90 68 40 / 0.35), 0 calc(var(--ds-space-hairline) * 1.5) calc(var(--ds-space-hairline) * 1.5) rgb(3 2 6 / 0.7), 0 var(--ds-space-control-dense) var(--ds-space-segment-dense) rgb(3 2 6 / 0.45);
 }
 
 :root[data-theme="parchment"] {
@@ -1035,12 +1092,13 @@
   --ds-range-thumb-shadow: var(--ds-volume-thumb-shadow-light);
   --ds-material-stage-background: var(--ds-material-fibre), #e8d8b6;
   --ds-material-domain-gold-color: var(--ds-accent);
-  --ds-wordmark-surface: linear-gradient(180deg, var(--ds-gold-ink-deep) 5%, var(--ds-gold-ink-light) 50%, var(--ds-gold-ink-deep) 95%);
+  /* Gold catches the lamp: a band of light (moved by printMaterial.ts) over finely crinkled foil. */
+  --ds-wordmark-surface: var(--ds-print-foil-band) 62% 0 / 300% 100% no-repeat, var(--ds-print-crinkle) 0 0 / var(--ds-print-crinkle-size), linear-gradient(180deg, var(--ds-gold-ink-deep) 5%, var(--ds-gold-ink-light) 50%, var(--ds-gold-ink-deep) 95%);
   --ds-wordmark-vendor-clip: text;
   --ds-wordmark-clip: text;
   --ds-material-title-l-color: #2e2016;
   --ds-material-title-l-text-shadow: 0 0 0.3em rgb(226 150 52 / 0.3);
-  --ds-material-ded-name-background: linear-gradient(180deg, var(--ds-gold-ink-deep) 8%, var(--ds-gold-ink) 52%, var(--ds-gold-ink-deep) 96%);
+  --ds-material-ded-name-background: var(--ds-print-foil-band) 62% 0 / 300% 100% no-repeat, var(--ds-print-crinkle) 0 0 / var(--ds-print-crinkle-size), linear-gradient(180deg, var(--ds-gold-ink-deep) 8%, var(--ds-gold-ink) 52%, var(--ds-gold-ink-deep) 96%);
   --ds-material-ded-name-vendor-background-clip: text;
   --ds-material-ded-name-background-clip: text;
   --ds-material-ded-name-filter: drop-shadow(0 var(--ds-space-hairline) 0 rgb(255 255 250 / 0.6));
@@ -1362,6 +1420,56 @@
   --ds-voice-7: var(--pigment-voice-7-parchment);
   --ds-material-gold-leaf: linear-gradient(180deg, var(--ds-gold-ink-light), var(--ds-gold-ink) 55%, var(--ds-gold-ink-deep));
   --ds-material-velvet-noise: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 .92  0 0 0 0 1  0 0 0 .05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  /* Print and paper (printMaterial.ts): iron-gall ink that sinks into the skin, a light rim
+     below each stroke where the impression catches the light. No gouache: inks are thin here. */
+  --ds-material-paper-relief-light: 0;
+  --ds-material-paper-relief-dark: 0;
+  --ds-print-type-wear: 1;
+  --ds-print-type-wear-fine: .55;
+  --ds-print-solid-voids: 0;
+  --ds-print-foil-crinkle: .5;
+  --ds-print-music-wear: 1;
+  --ds-print-gouache-wear: 0;
+  --ds-print-gouache-rim: 0;
+  --ds-print-gouache-shade: 0;
+  --ds-print-gouache-shadow: 0;
+  --ds-print-type-shadow: 0 0 0.55px currentColor, 0 var(--ds-space-hairline) 0 rgb(255 249 232 / 0.6);
+  --ds-print-type-shadow-fine: 0 0 0.35px currentColor, 0 0.75px 0 rgb(255 249 232 / 0.5);
+  --ds-print-icon-filter: drop-shadow(0 0.75px 0 rgb(255 249 232 / 0.5));
+  --ds-print-card-filter: drop-shadow(0 var(--ds-space-hairline) 0.6px rgb(90 60 25 / 0.26)) drop-shadow(0 var(--ds-space-inline) var(--ds-space-control) rgb(90 60 25 / 0.16));
+  --ds-print-card-lifted-filter: drop-shadow(0 var(--ds-space-micro) var(--ds-space-hairline) rgb(90 60 25 / 0.22)) drop-shadow(0 calc(var(--ds-space-section) - var(--ds-space-micro)) calc(var(--ds-space-section) - var(--ds-space-micro)) rgb(90 60 25 / 0.2));
+  --ds-print-under-surface: var(--ds-material-fibre), #e2d0aa;
+  --ds-print-lamp: none;
+  --ds-print-foil-band: linear-gradient(105deg, rgb(255 236 176 / 0) 38%, rgb(255 242 200 / 0.72) 50%, rgb(255 236 176 / 0) 62%);
+  /* D51 print: on parchment the ink sinks into the paper -- no bed, no gouache; fields keep their vellum. */
+  --ds-print-solid-bed: none;
+  --ds-print-solid-pressed: inset var(--ds-space-hairline) var(--ds-space-micro) var(--ds-space-control-dense) rgb(0 0 0 / 0.5), inset calc(-1 * var(--ds-space-hairline)) calc(-1 * var(--ds-space-hairline)) 0 rgb(255 240 210 / 0.08);
+  --ds-print-field-surface: var(--ds-material-vellum);
+  --ds-print-field-edge: var(--ds-material-edge);
+  --ds-print-field-focus-edge: var(--ds-ink-secondary);
+  --ds-print-field-filter: var(--ds-material-filter);
+  --ds-print-field-bed: var(--ds-shadow-material-highlight);
+  --ds-print-field-focus: var(--ds-shadow-material-highlight);
+  --ds-print-tab-surface: var(--ds-library-song-more-background);
+  --ds-print-tab-shadow: none;
+  --ds-print-dab-light: #fffaf0;
+  --ds-print-dab-dark: #2a1d10;
+  --ds-print-dab-mix: 100%;
+  --ds-print-dab-shadow: none;
+  --ds-print-dab-shape-a: 50%;
+  --ds-print-dab-shape-b: 50%;
+  --ds-print-dab-shape-c: 50%;
+  --ds-print-mix-surface: transparent;
+  --ds-print-mix-edge: var(--ds-rule-strong);
+  --ds-print-mix-hover-edge: var(--ds-ink-secondary);
+  --ds-print-mix-shadow: none;
+  --ds-print-mute-on-surface: var(--ds-ink);
+  --ds-print-mute-on-edge: var(--ds-ink);
+  --ds-print-mute-on-shadow: var(--ds-player-mute-button-pressed-box-shadow);
+  --ds-print-groove-surface: var(--ds-surface-hover);
+  --ds-print-groove-shadow: none;
+  --ds-print-disc-surface: var(--ds-ink);
+  --ds-print-disc-shadow: var(--ds-volume-thumb-shadow-light);
 }
 
 :root[data-theme="velvet"] {
@@ -1847,6 +1955,88 @@
   --ds-voice-7: var(--pigment-voice-7);
   --ds-material-gold-leaf: linear-gradient(180deg, var(--ds-gold-ink-light), var(--ds-gold-ink) 55%, var(--ds-gold-ink-deep));
   --ds-material-velvet-noise: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 .92  0 0 0 0 1  0 0 0 .05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  /* Print and paper: Velvet is glass and light, not paper -- nothing is printed. */
+  --ds-material-paper-relief-light: 0;
+  --ds-material-paper-relief-dark: 0;
+  --ds-print-type-wear: 0;
+  --ds-print-type-wear-fine: 0;
+  --ds-print-solid-voids: 0;
+  --ds-print-foil-crinkle: 0;
+  --ds-print-music-wear: 0;
+  --ds-print-gouache-wear: 0;
+  --ds-print-gouache-rim: 0;
+  --ds-print-gouache-shade: 0;
+  --ds-print-gouache-shadow: 0;
+  --ds-print-type-shadow: none;
+  --ds-print-type-shadow-fine: none;
+  --ds-print-icon-filter: none;
+  --ds-print-card-filter: none;
+  --ds-print-card-lifted-filter: none;
+  --ds-print-under-surface: none;
+  --ds-print-lamp: none;
+  --ds-print-foil-band: none;
+  /* D51 print: velvet is not paper -- nothing is printed. */
+  --ds-print-solid-bed: none;
+  --ds-print-solid-pressed: none;
+  --ds-print-field-surface: var(--ds-material-vellum);
+  --ds-print-field-edge: var(--ds-material-edge);
+  --ds-print-field-focus-edge: var(--ds-ink-secondary);
+  --ds-print-field-filter: var(--ds-material-filter);
+  --ds-print-field-bed: var(--ds-shadow-material-highlight);
+  --ds-print-field-focus: var(--ds-shadow-material-highlight);
+  --ds-print-tab-surface: var(--ds-library-song-more-background);
+  --ds-print-tab-shadow: none;
+  --ds-print-dab-light: #ffffff;
+  --ds-print-dab-dark: #000000;
+  --ds-print-dab-mix: 100%;
+  --ds-print-dab-shadow: none;
+  --ds-print-dab-shape-a: 50%;
+  --ds-print-dab-shape-b: 50%;
+  --ds-print-dab-shape-c: 50%;
+  --ds-print-mix-surface: transparent;
+  --ds-print-mix-edge: var(--ds-rule-strong);
+  --ds-print-mix-hover-edge: var(--ds-ink-secondary);
+  --ds-print-mix-shadow: none;
+  --ds-print-mute-on-surface: var(--ds-ink);
+  --ds-print-mute-on-edge: var(--ds-ink);
+  --ds-print-mute-on-shadow: var(--ds-player-mute-button-pressed-box-shadow);
+  --ds-print-groove-surface: var(--ds-surface-hover);
+  --ds-print-groove-shadow: none;
+  --ds-print-disc-surface: var(--ds-ink);
+  --ds-print-disc-shadow: var(--ds-volume-thumb-shadow);
+}
+
+/* Print and paper: the generated textures (printMaterial.ts publishes the live inputs on paper
+   themes only, so each falls back to no image elsewhere) and their geometry. */
+:root {
+  --ds-print-type-mask: var(--ds-print-wear-display-live, none);
+  --ds-print-type-mask-fine: var(--ds-print-wear-fine-live, none);
+  --ds-print-type-mask-size: 128px 128px;
+  --ds-print-type-mask-fine-size: 96px 96px;
+  --ds-print-voids: var(--ds-print-voids-live, none);
+  --ds-print-voids-size: 96px 96px;
+  --ds-print-crinkle: var(--ds-print-crinkle-live, none);
+  --ds-print-crinkle-size: 56px 56px;
+  --ds-print-deckle-card: var(--ds-print-deckle-card-top-live, none) top left / 256px 2000px repeat-x intersect, var(--ds-print-deckle-card-bottom-live, none) bottom left / 256px 2000px repeat-x intersect, var(--ds-print-deckle-card-left-live, none) top left / 2000px 256px repeat-y intersect, var(--ds-print-deckle-card-right-live, none) top right / 2000px 256px repeat-y intersect;
+  --ds-print-deckle-under: var(--ds-print-deckle-under-top-live, none) 97px top / 256px 2000px repeat-x intersect, var(--ds-print-deckle-under-bottom-live, none) 41px bottom / 256px 2000px repeat-x intersect, var(--ds-print-deckle-under-left-live, none) left 63px / 2000px 256px repeat-y intersect, var(--ds-print-deckle-under-right-live, none) right 150px / 2000px 256px repeat-y intersect;
+  --ds-print-under-offset: calc(var(--ds-space-compact) + var(--ds-space-hairline)) var(--ds-space-snug);
+  --ds-print-under-offset-alt: var(--ds-space-snug) var(--ds-space-compact);
+  --ds-print-under-offset-left: calc(-1 * (var(--ds-space-micro) + var(--ds-space-hairline))) calc(var(--ds-space-snug) + var(--ds-space-hairline));
+  --ds-print-under-offset-low: var(--ds-space-compact) calc(var(--ds-space-snug) + var(--ds-space-hairline));
+  --ds-print-under-turn: 0.5deg;
+  --ds-print-under-turn-alt: -0.6deg;
+  --ds-print-under-turn-left: 0.8deg;
+  --ds-print-under-turn-low: -0.35deg;
+  /* D51 print: where a gouache dab is lit and how its body falls off. */
+  --ds-print-dab-light-at: 38% 34%;
+  --ds-print-dab-light-stop: 0%;
+  --ds-print-dab-body-stop: 55%;
+  --ds-print-dab-edge-stop: 100%;
+  /* Pressed, a control sinks into the paper and springs back when let go. */
+  --ds-print-press-transition: background-color 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.2s, opacity 0.15s, scale 0.38s cubic-bezier(0.3, 1.8, 0.5, 1), translate 0.38s cubic-bezier(0.3, 1.8, 0.5, 1);
+  --ds-print-press-in-duration: 60ms;
+  --ds-print-press-scale: 0.965;
+  --ds-print-press-shift: 0 0.6px;
 }
 
 /* Additional renderer pigments retained separately from UI ink (P2 inputs). */
@@ -2463,6 +2653,23 @@
   --ds-delay-dedication-write: 0.25s;
 }
 @theme inline {
+  --shadow-print-mix-shadow: var(--ds-print-mix-shadow);
+  --shadow-print-mute-on-shadow: var(--ds-print-mute-on-shadow);
+  --surface-print-mix-surface: var(--ds-print-mix-surface);
+  --surface-print-mute-on-surface: var(--ds-print-mute-on-surface);
+  --color-print-mix-edge: var(--ds-print-mix-edge);
+  --color-print-mix-hover-edge: var(--ds-print-mix-hover-edge);
+  --color-print-mute-on-edge: var(--ds-print-mute-on-edge);
+  --shadow-print-solid-bed: var(--ds-print-solid-bed);
+  --shadow-print-solid-pressed: var(--ds-print-solid-pressed);
+  --shadow-print-field-bed: var(--ds-print-field-bed);
+  --shadow-print-field-focus: var(--ds-print-field-focus);
+  --shadow-print-tab-shadow: var(--ds-print-tab-shadow);
+  --shadow-print-dab-shadow: var(--ds-print-dab-shadow);
+  --surface-print-field-surface: var(--ds-print-field-surface);
+  --surface-print-tab-surface: var(--ds-print-tab-surface);
+  --color-print-field-edge: var(--ds-print-field-edge);
+  --color-print-field-focus-edge: var(--ds-print-field-focus-edge);
   --surface-material-clear: var(--ds-material-clear);
   --animate-animation-loading: var(--ds-animation-loading);
   --animate-landing-modes-animation: var(--ds-landing-modes-animation);

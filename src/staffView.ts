@@ -8,6 +8,7 @@ import { around, SliceRing } from './sliceRing';
 
 import { drawRulerSignature, signatureChanges, type SignatureChange } from './signatures';
 import { drawInkMark, layoutMarks, MARKS_ON, type MarkLayout } from './goldInk';
+import { InkLayer, printInPlace, printsMusic } from './printMaterial';
 
 // Wider than the piano roll's (70): noteheads, stems, accidentals and syllables need the room.
 // A phone draws its staves larger (see updateFill), so it starts from less to show about a bar.
@@ -630,6 +631,8 @@ function lyricLines(notes: NoteEvent[]): { lines: number; lineOf: Map<NoteEvent,
  */
 export class StaffView {
   private theme = readTheme();
+  // D51: the margin's staves, clefs and names printed into its paper (printMaterial.ts).
+  private marginInk: InkLayer | null = null;
   private shadeRevision = -1;
   private pastShade = '';
   private canvas: HTMLCanvasElement;
@@ -1177,6 +1180,9 @@ export class StaffView {
       music.clip();
       music.setTransform(k, 0, 0, k, left, -this.ringTop * k);
       this.paintRange(music, layouts, 0, w, at, -Infinity);
+      // Printed into the paper once, here: the wear anchored where the paper's origin is (beat 0 at
+      // the strip's column 0, the staves' top), so slices meet seamlessly and match the live stretch.
+      if (printsMusic(this.theme)) printInPlace(music, { x: left, y: 0, w: sd, h: this.ringMusic!.height }, { x: left - i * sd, y: -this.ringTop * k }, this.theme);
       music.restore();
     }
     const ruler = this.ringRuler!.getContext('2d');
@@ -1229,6 +1235,9 @@ export class StaffView {
       ctx.rect(gapFrom / k, top / k, (gapTo - gapFrom) / k, height - top / k);
       ctx.clip();
       ctx.translate(0, dy / k - this.ringTop);
+      // (D51: the music sounding now is drawn live and lit, and not worn -- the light on it outshines
+      // the grain; the print returns as it passes into the slices. Printing this stretch every frame
+      // cost ~3.5 ms per frame on the throttled phone profile.)
       this.paintRange(ctx, layouts, gapFrom / k, gapTo / k, gridBeat, playheadBeat);
       ctx.restore();
     }
@@ -1413,7 +1422,8 @@ export class StaffView {
   }
 
   /** The pinned left margin: voice name above each staff, then clef and key signature on it. */
-  private drawMargin(ctx: CanvasRenderingContext2D, layouts: PartLayout[], startBeat: number, height: number) {
+  private drawMargin(onto: CanvasRenderingContext2D, layouts: PartLayout[], startBeat: number, height: number) {
+    let ctx = onto;
     const G = this.gutterPx;
     const ground = this.theme.color(this.theme.material.surface === 'paper' ? 'page-background' : 'canvas-surface');
     // The pinned margin is a strip of its own: its paper stays put.
@@ -1436,6 +1446,9 @@ export class StaffView {
     ctx.rect(0, STAFF_RULER_HEIGHT_PX, this.cssWidth, height - STAFF_RULER_HEIGHT_PX);
     ctx.clip();
     ctx.translate(0, STAFF_RULER_HEIGHT_PX - this.scrollY);
+    // The margin's staves, clefs and names are printed too, into its own still paper.
+    const ink = typeof document !== 'undefined' && printsMusic(this.theme) ? (this.marginInk ??= new InkLayer()) : null;
+    if (ink) ctx = ink.begin(onto, { x: 0, y: -1e6, w: this.cssWidth, h: 2e6 });
     for (const layout of layouts) {
       const bottomLineY = layout.topY + STAFF_HEIGHT_PX;
       const dimmed = this.dimmedParts.has(layout.partId);
@@ -1474,6 +1487,10 @@ export class StaffView {
       ctx.fillText(name, 25, labelY + 0.5);
     }
     ctx.globalAlpha = 1;
+    if (ink) {
+      ink.press(onto, { x: 0, y: 0 }, this.theme, 'source-over');
+      ctx = onto;
+    }
     ctx.restore();
   }
 

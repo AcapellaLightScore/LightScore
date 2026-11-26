@@ -41,6 +41,7 @@ import { subscribeRendererTheme } from './rendererTheme';
 import { canvasFontsReady } from './theme';
 import { WaveBackdrop } from './backdrop';
 import { DESIGN_CHOICE, PAPER_DESIGN, PARCHMENT, setDesignChoice, START_DRAFT, START_STAFF, START_STAGE, type DesignChoice } from './design';
+import { initPrintMaterial } from './printMaterial';
 import { initPaper, paintSwatch, PAPER_KINDS, paperKind, setPaperKind, type PaperKind } from './paper';
 import { applyPercussion } from './percussion';
 import { lightScoreName, type TitleName } from './lightName';
@@ -3503,6 +3504,7 @@ window.addEventListener('resize', () => {
 // The paper design's paper (paper.ts): on the CSS surfaces from the start; another one chosen on
 // this device is painted everywhere at once.
 initPaper();
+initPrintMaterial();
 subscribeRendererTheme({ score: () => currentScore, repaint: repaintForTheme, resize: resizeCanvasMetrics });
 window.addEventListener('paperchange', () => {
   pianoRoll?.repaint();

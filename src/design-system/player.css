@@ -49,3 +49,24 @@
   );
 }
 }
+/* D51: on paper the volume slider is a groove cut into the card with a disc of ivory board in it.
+   Its native subparts have no recipe-owned node; the values are theme tokens (parchment and velvet
+   pass their own track and thumb through). */
+@container style(--ds-material-family: paper) {
+:root:root .ds-player-volume::-webkit-slider-runnable-track {
+  background: var(--ds-print-groove-surface);
+  box-shadow: var(--ds-print-groove-shadow);
+}
+:root:root .ds-player-volume::-moz-range-track {
+  background: var(--ds-print-groove-surface);
+  box-shadow: var(--ds-print-groove-shadow);
+}
+:root:root .ds-player-volume::-webkit-slider-thumb {
+  background: var(--ds-print-disc-surface);
+  box-shadow: var(--ds-print-disc-shadow);
+}
+:root:root .ds-player-volume::-moz-range-thumb {
+  background: var(--ds-print-disc-surface);
+  box-shadow: var(--ds-print-disc-shadow);
+}
+}

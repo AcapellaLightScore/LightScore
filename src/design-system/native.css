@@ -50,6 +50,16 @@ button:disabled {
     flex: none;
     display: block
 }
+/* D51: on paper the line icons are printed with the text -- their strokes worn by the grain, the
+   impression catching the lamp. Icons are markup from icons.ts, not recipe-owned nodes; a recipe
+   that sets its icons' filter (a solid, a pressed toggle) still wins in the utilities layer. */
+@container style(--ds-material-family: paper) {
+    .ic {
+        mask-image: var(--ds-print-type-mask-fine);
+        mask-size: var(--ds-print-type-mask-fine-size);
+        filter: var(--ds-print-icon-filter)
+    }
+}
 @media (prefers-reduced-motion: reduce) {
     /* The OS motion preference must also stop generated content and native nodes without recipes. */
     *,
